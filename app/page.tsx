@@ -1,39 +1,71 @@
 'use client';
 
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 const MAX_FILES = 30;
+const COUNT_OPTIONS = [4, 6, 8, 10] as const;
+const POLL_INTERVAL_MS = 3000;
 
-type ResultItem = {
-  fileName: string;
-  status: 'pending' | 'done' | 'error';
+type ShotResult = {
+  sequenceNumber: number;
+  imageRole: string;
+  imageJob: string;
+  status: 'done' | 'error';
   image?: string;
   error?: string;
 };
 
-async function generateOne(file: File, prompt: string): Promise<string> {
-  const formData = new FormData();
-  formData.append('photo', file);
-  if (prompt.trim()) formData.append('prompt', prompt.trim());
+type CampaignStatus =
+  | 'queued'
+  | 'analyzing'
+  | 'needs_more_evidence'
+  | 'generating_hero'
+  | 'generating'
+  | 'packaging'
+  | 'completed'
+  | 'incomplete'
+  | 'failed';
 
-  const res = await fetch('/api/generate', { method: 'POST', body: formData });
-  const data = await res.json();
+type CampaignState = {
+  id: string;
+  status: CampaignStatus;
+  statusLabel: string;
+  statusMessage?: string;
+  productSummary: { category: string; itemType: string; quantity: number; campaignThesis: string } | null;
+  minimumAdditionalEvidenceNeeded: string[];
+  results: ShotResult[];
+  listingTitle: string | null;
+  listingDescription: string | null;
+  error: string | null;
+};
 
-  if (!res.ok) {
-    throw new Error(data.error || 'Something went wrong.');
-  }
-
-  return (data.images as string[])[0];
-}
+const TERMINAL_STATUSES: CampaignStatus[] = ['needs_more_evidence', 'completed', 'incomplete', 'failed'];
 
 export default function Home() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [files, setFiles] = useState<File[]>([]);
-  const [prompt, setPrompt] = useState('');
-  const [loading, setLoading] = useState(false);
-  const [progress, setProgress] = useState(0);
+  const [count, setCount] = useState<(typeof COUNT_OPTIONS)[number]>(6);
+  const [notes, setNotes] = useState('');
+  const [submitting, setSubmitting] = useState(false);
   const [globalError, setGlobalError] = useState<string | null>(null);
-  const [results, setResults] = useState<ResultItem[]>([]);
+  const [campaign, setCampaign] = useState<CampaignState | null>(null);
+
+  useEffect(() => {
+    if (!campaign || TERMINAL_STATUSES.includes(campaign.status)) return;
+
+    const timer = setInterval(async () => {
+      try {
+        const res = await fetch(`/api/campaigns/${campaign.id}`);
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Failed to check status.');
+        setCampaign(data as CampaignState);
+      } catch (err) {
+        setGlobalError(err instanceof Error ? err.message : 'Failed to check status.');
+      }
+    }, POLL_INTERVAL_MS);
+
+    return () => clearInterval(timer);
+  }, [campaign]);
 
   function handleFileChange(selected: FileList | null) {
     if (!selected) return;
@@ -41,13 +73,12 @@ export default function Home() {
     const combined = [...files, ...incoming];
 
     if (combined.length > MAX_FILES) {
-      setGlobalError(`You can upload up to ${MAX_FILES} photos at a time. Only the first ${MAX_FILES} were kept.`);
+      setGlobalError(`You can upload up to ${MAX_FILES} photos. Only the first ${MAX_FILES} were kept.`);
     } else {
       setGlobalError(null);
     }
 
     setFiles(combined.slice(0, MAX_FILES));
-    setResults([]);
     if (fileInputRef.current) fileInputRef.current.value = '';
   }
 
@@ -58,51 +89,54 @@ export default function Home() {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (files.length === 0) {
-      setGlobalError('Please choose at least one photo first.');
+      setGlobalError('Please upload at least one photo of the item.');
       return;
     }
 
-    setLoading(true);
+    setSubmitting(true);
     setGlobalError(null);
-    setProgress(0);
-    setResults(files.map((f) => ({ fileName: f.name, status: 'pending' })));
+    setCampaign(null);
 
-    for (let i = 0; i < files.length; i++) {
-      const file = files[i];
-      try {
-        const image = await generateOne(file, prompt);
-        setResults((prev) =>
-          prev.map((r, idx) => (idx === i ? { ...r, status: 'done', image } : r)),
-        );
-      } catch (err) {
-        setResults((prev) =>
-          prev.map((r, idx) =>
-            idx === i
-              ? { ...r, status: 'error', error: err instanceof Error ? err.message : 'Failed.' }
-              : r,
-          ),
-        );
-      }
-      setProgress(i + 1);
+    try {
+      const formData = new FormData();
+      files.forEach((f) => formData.append('photos', f));
+      formData.append('count', String(count));
+      if (notes.trim()) formData.append('notes', notes.trim());
+
+      const res = await fetch('/api/campaigns', { method: 'POST', body: formData });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Something went wrong.');
+
+      setCampaign({
+        id: data.jobId,
+        status: 'queued',
+        statusLabel: 'Preparing your campaign',
+        productSummary: null,
+        minimumAdditionalEvidenceNeeded: [],
+        results: [],
+        listingTitle: null,
+        listingDescription: null,
+        error: null,
+      });
+    } catch (err) {
+      setGlobalError(err instanceof Error ? err.message : 'Something went wrong.');
+    } finally {
+      setSubmitting(false);
     }
-
-    setLoading(false);
   }
+
+  const isProcessing = campaign !== null && !TERMINAL_STATUSES.includes(campaign.status);
 
   return (
     <main>
       <h1>MarketplaceAI</h1>
       <p className="subtitle">
-        Upload up to {MAX_FILES} photos and get back an improved version of each, ready to download.
+        Upload photos of one item (up to {MAX_FILES}), choose your package size, and get a
+        coordinated, truthful listing photo campaign back.
       </p>
 
       <form className="card" onSubmit={handleSubmit}>
-        <div
-          className="dropzone"
-          onClick={() => fileInputRef.current?.click()}
-          role="button"
-          tabIndex={0}
-        >
+        <div className="dropzone" onClick={() => fileInputRef.current?.click()} role="button" tabIndex={0}>
           <input
             ref={fileInputRef}
             type="file"
@@ -112,10 +146,10 @@ export default function Home() {
           />
           {files.length > 0 ? (
             <p>
-              {files.length} photo{files.length > 1 ? 's' : ''} selected
+              {files.length} photo{files.length > 1 ? 's' : ''} of this item selected
             </p>
           ) : (
-            <p>Click to upload photos (up to {MAX_FILES})</p>
+            <p>Click to upload photos of the item (up to {MAX_FILES})</p>
           )}
         </div>
 
@@ -133,43 +167,91 @@ export default function Home() {
         )}
 
         <div className="field">
-          <label htmlFor="prompt">Custom instructions (optional, applied to every photo)</label>
+          <label htmlFor="count">Package size</label>
+          <select id="count" value={count} onChange={(e) => setCount(Number(e.target.value) as typeof count)}>
+            {COUNT_OPTIONS.map((n) => (
+              <option key={n} value={n}>
+                {n} final images
+              </option>
+            ))}
+          </select>
+        </div>
+
+        <div className="field">
+          <label htmlFor="notes">Seller notes (optional)</label>
           <textarea
-            id="prompt"
-            placeholder="e.g. brighten the photo, use a clean white background"
-            value={prompt}
-            onChange={(e) => setPrompt(e.target.value)}
+            id="notes"
+            placeholder="e.g. brand, model, known defects, what's included, preferred setting"
+            value={notes}
+            onChange={(e) => setNotes(e.target.value)}
           />
         </div>
 
-        <button className="primary" type="submit" disabled={loading || files.length === 0}>
-          {loading
-            ? `Generating ${progress}/${files.length}…`
-            : `Generate improved photo${files.length > 1 ? 's' : ''}`}
+        <button className="primary" type="submit" disabled={submitting || isProcessing || files.length === 0}>
+          {submitting ? 'Starting…' : 'Generate my listing campaign'}
         </button>
 
         {globalError && <p className="error">{globalError}</p>}
       </form>
 
-      {results.length > 0 && (
+      {campaign && (
         <div className="card">
-          <h2>Results</h2>
-          <div className="results-grid">
-            {results.map((r, i) => (
-              <div className="result-item" key={i}>
-                {r.status === 'pending' && <p className="status">Waiting…</p>}
-                {r.status === 'error' && <p className="error">{r.fileName}: {r.error}</p>}
-                {r.status === 'done' && r.image && (
-                  <>
-                    <img src={r.image} alt={`Improved ${r.fileName}`} />
-                    <a href={r.image} download={`marketplaceai-${i + 1}.png`}>
-                      Download
-                    </a>
-                  </>
-                )}
-              </div>
-            ))}
-          </div>
+          <h2>{campaign.statusLabel}</h2>
+          {isProcessing && <p className="status">This can take a few minutes — feel free to leave this open.</p>}
+          {campaign.statusMessage && <p className="status">{campaign.statusMessage}</p>}
+
+          {campaign.status === 'needs_more_evidence' && campaign.minimumAdditionalEvidenceNeeded.length > 0 && (
+            <ul>
+              {campaign.minimumAdditionalEvidenceNeeded.map((item, i) => (
+                <li key={i}>{item}</li>
+              ))}
+            </ul>
+          )}
+
+          {campaign.status === 'failed' && campaign.error && <p className="error">{campaign.error}</p>}
+
+          {campaign.productSummary && (
+            <p className="status">
+              Identified: {campaign.productSummary.itemType} ({campaign.productSummary.category}), qty{' '}
+              {campaign.productSummary.quantity}
+            </p>
+          )}
+
+          {campaign.results.length > 0 && (
+            <div className="results-grid">
+              {campaign.results.map((r) => (
+                <div className="result-item" key={r.sequenceNumber}>
+                  {r.status === 'error' && (
+                    <p className="error">
+                      {r.imageRole}: {r.error}
+                    </p>
+                  )}
+                  {r.status === 'done' && r.image && (
+                    <>
+                      <img src={r.image} alt={r.imageJob} />
+                      <a href={r.image} download={`${r.sequenceNumber}-${r.imageRole}.png`}>
+                        Download
+                      </a>
+                    </>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+
+          {campaign.listingTitle && (
+            <div className="field">
+              <label>Listing title</label>
+              <p>{campaign.listingTitle}</p>
+            </div>
+          )}
+
+          {campaign.listingDescription && (
+            <div className="field">
+              <label>Listing description</label>
+              <p style={{ whiteSpace: 'pre-wrap' }}>{campaign.listingDescription}</p>
+            </div>
+          )}
         </div>
       )}
     </main>
