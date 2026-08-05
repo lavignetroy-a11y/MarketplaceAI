@@ -1,16 +1,18 @@
 import OpenAI from 'openai';
 import { analyzeCampaign } from './analyze';
-import { dataUrlToSourcePhoto, generateShotImage } from './generateImages';
+import { dataUrlToSourcePhoto, editHeroImage, generateShotImage } from './generateImages';
 import { getJob, setStatus, updateJob } from './store';
-import type { GeneratedShotResult, ShotPlan, SourcePhoto } from './types';
+import type { GeneratedShotResult, ShotOrientation, ShotPlan, SourcePhoto } from './types';
 
 async function generateOneShot(
   client: OpenAI,
   shot: ShotPlan,
   sources: SourcePhoto[],
   heroReference: SourcePhoto | null,
+  heroOrientation: ShotOrientation | null,
 ): Promise<GeneratedShotResult> {
-  if (shot.usesHeroReference && !heroReference) {
+  const needsHero = shot.productionMode === 'hero_edit' || shot.productionMode === 'hero_reference';
+  if (needsHero && (!heroReference || !heroOrientation)) {
     return {
       sequenceNumber: shot.sequenceNumber,
       imageRole: shot.imageRole,
@@ -21,12 +23,15 @@ async function generateOneShot(
   }
 
   try {
-    const image = await generateShotImage(
-      client,
-      shot,
-      sources,
-      shot.usesHeroReference ? heroReference : null,
-    );
+    const image =
+      shot.productionMode === 'hero_edit'
+        ? await editHeroImage(client, shot, heroReference as SourcePhoto, heroOrientation as ShotOrientation)
+        : await generateShotImage(
+            client,
+            shot,
+            sources,
+            shot.productionMode === 'hero_reference' ? heroReference : null,
+          );
     return {
       sequenceNumber: shot.sequenceNumber,
       imageRole: shot.imageRole,
@@ -72,15 +77,18 @@ export async function runCampaign(jobId: string): Promise<void> {
     const [heroShot, ...remainingShots] = analysis.shots;
 
     setStatus(jobId, 'generating_hero');
-    const heroResult = await generateOneShot(client, heroShot, job.sources, null);
+    const heroResult = await generateOneShot(client, heroShot, job.sources, null, null);
     const heroReference =
       heroResult.status === 'done' && heroResult.image
         ? dataUrlToSourcePhoto(heroResult.image, 'approved_hero.png')
         : null;
+    const heroOrientation = heroReference ? heroShot.orientation : null;
 
     setStatus(jobId, 'generating');
     const remainingResults = await Promise.all(
-      remainingShots.map((shot) => generateOneShot(client, shot, job.sources, heroReference)),
+      remainingShots.map((shot) =>
+        generateOneShot(client, shot, job.sources, heroReference, heroOrientation),
+      ),
     );
 
     const results: GeneratedShotResult[] = [heroResult, ...remainingResults].sort(

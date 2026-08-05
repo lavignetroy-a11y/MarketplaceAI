@@ -26,17 +26,32 @@ Requirements specific to this call:
 
 - "shots" must contain EXACTLY the requested_final_image_count number of entries, numbered
   sequenceNumber 1..N with no gaps or repeats.
-- shots[0] is always the hero: sequenceNumber 1, imageRole "hero", usesHeroReference false.
-- Every other shot's usesHeroReference should be true only when it is a dependent_marketing shot
-  that should use the approved hero purely as an environment/photographic-consistency reference,
-  per the DEPENDENT MARKETING SHOT RULE above. Evidence shots and independent marketing shots
-  should usually be false.
+- shots[0] is always the hero: sequenceNumber 1, imageRole "hero", productionMode "independent".
+- Every other shot must be assigned exactly one productionMode:
+    "hero_edit" -- use ONLY when the shot keeps the exact same camera position, angle, and
+      distance as the hero (e.g. a tighter crop on the same setup, a material/detail close-up
+      within the same frame, a minor in-place arrangement change). This mode edits the hero
+      image directly and therefore guarantees a pixel-identical background -- but that is only
+      physically coherent when the camera has NOT moved. If this shot's job requires a
+      different camera angle, height, or distance than the hero, do NOT use hero_edit.
+    "hero_reference" -- use when the shot is a marketing shot that needs a genuinely different
+      camera angle/position than the hero (rear, side, top, wider/narrower framing revealing a
+      different part of the room, etc). The hero is attached only as a soft environment/material/
+      lighting-consistency reference, per the DEPENDENT MARKETING SHOT RULE above -- it will not
+      produce an identical background, only a visually consistent one.
+    "independent" -- use for evidence/documentary shots and any marketing shot that does not
+      need environmental continuity with the hero at all.
+  For hero_edit shots, set "orientation" equal to the hero shot's orientation (the canvas is not
+  being resized) and write the prompt as an edit instruction against the hero image itself (e.g.
+  "keep this exact scene and background unchanged; only change ...").
 - Each shot's "prompt" field must be one complete, self-contained image-generation prompt written
-  for an image-editing model that will receive the original source photographs (and, when
-  usesHeroReference is true, the approved hero image) as reference images. Since the model
-  receiving that prompt has no other context, the prompt text itself must restate the product
-  truth lock, the permitted enhancements, the forbidden changes, and the never-generate list as
-  they apply to that specific shot -- do not write a short prompt that assumes shared context.
+  for an image-editing model that will receive reference images appropriate to its
+  productionMode (original source photos for independent/hero_reference shots, the hero image
+  alone for hero_edit shots, plus the hero as an extra reference for hero_reference shots).
+  Since the model receiving that prompt has no other context, the prompt text itself must
+  restate the product truth lock, the permitted enhancements, the forbidden changes, and the
+  never-generate list as they apply to that specific shot -- do not write a short prompt that
+  assumes shared context.
 - If, and only if, truthful completion of the requested count is impossible with the given
   photos, set readyForGeneration to false, explain why in reasonNotReady, list the precise
   minimum additional evidence needed, and you may still return a best-effort "shots" array (it
@@ -100,7 +115,7 @@ const analysisSchema = {
           imageRole: { type: 'string' },
           imageJob: { type: 'string' },
           classification: { type: 'string', enum: ['marketing', 'evidence'] },
-          usesHeroReference: { type: 'boolean' },
+          productionMode: { type: 'string', enum: ['independent', 'hero_edit', 'hero_reference'] },
           orientation: { type: 'string', enum: ['square', 'portrait', 'landscape'] },
           prompt: { type: 'string' },
           saveAs: { type: 'string' },
@@ -110,7 +125,7 @@ const analysisSchema = {
           'imageRole',
           'imageJob',
           'classification',
-          'usesHeroReference',
+          'productionMode',
           'orientation',
           'prompt',
           'saveAs',

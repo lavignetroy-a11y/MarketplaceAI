@@ -23,6 +23,8 @@ function sizeForOrientation(orientation: ShotOrientation): '1024x1024' | '1024x1
   return '1024x1024';
 }
 
+// Used for productionMode "independent" (no hero involved) and "hero_reference" (hero attached
+// alongside the original sources as a soft style/material/lighting reference -- not pixel-exact).
 export async function generateShotImage(
   client: OpenAI,
   shot: ShotPlan,
@@ -41,6 +43,35 @@ export async function generateShotImage(
     prompt: shot.prompt,
     n: 1,
     size: sizeForOrientation(shot.orientation),
+    quality: 'high',
+  });
+
+  const b64 = result.data?.[0]?.b64_json;
+  if (!b64) {
+    throw new Error('Image generation returned no image data.');
+  }
+  return `data:image/png;base64,${b64}`;
+}
+
+// Used for productionMode "hero_edit": the hero image is the SOLE input being edited, which is
+// what makes the background genuinely pixel-consistent (edit mode preserves whatever the prompt
+// doesn't describe changing). Only valid when the shot keeps the hero's exact camera framing --
+// the output size is forced to match the hero's own size rather than the shot's own orientation
+// field, since resizing the canvas would risk the model filling in new background area.
+export async function editHeroImage(
+  client: OpenAI,
+  shot: ShotPlan,
+  heroReference: SourcePhoto,
+  heroOrientation: ShotOrientation,
+): Promise<string> {
+  const model = process.env.OPENAI_IMAGE_MODEL || 'gpt-image-1';
+
+  const result = await client.images.edit({
+    model,
+    image: toFile(heroReference),
+    prompt: shot.prompt,
+    n: 1,
+    size: sizeForOrientation(heroOrientation),
     quality: 'high',
   });
 

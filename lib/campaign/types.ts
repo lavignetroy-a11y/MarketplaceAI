@@ -4,12 +4,21 @@ export type ShotClassification = 'marketing' | 'evidence';
 
 export type ShotOrientation = 'square' | 'portrait' | 'landscape';
 
+// independent: generated fresh from the original source photos only, no hero involvement.
+// hero_edit: the hero image itself is edited directly (same camera framing as the hero) --
+//   this is what guarantees a pixel-identical background, since the edit only touches what
+//   the prompt describes and leaves the rest of the hero image untouched.
+// hero_reference: the shot needs a genuinely different camera angle/position than the hero,
+//   so a pixel-identical background isn't physically coherent -- the hero is attached as one
+//   of several reference images purely for material/lighting/palette consistency.
+export type ProductionMode = 'independent' | 'hero_edit' | 'hero_reference';
+
 export interface ShotPlan {
   sequenceNumber: number;
   imageRole: string;
   imageJob: string;
   classification: ShotClassification;
-  usesHeroReference: boolean;
+  productionMode: ProductionMode;
   orientation: ShotOrientation;
   prompt: string;
   saveAs: string;
