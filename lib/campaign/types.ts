@@ -4,14 +4,22 @@ export type ShotClassification = 'marketing' | 'evidence';
 
 export type ShotOrientation = 'square' | 'portrait' | 'landscape';
 
-// independent: generated fresh from the original source photos only, no hero involvement.
+// source_edit: a specific original source photo already shows this shot's exact viewpoint, so
+//   that ONE photo is edited directly (lighting/background/crop only). This is the strongest
+//   guarantee against geometry errors (e.g. a mirrored/flipped steering wheel) because the model
+//   is never asked to reconstruct structure -- it only touches what the prompt describes. Prefer
+//   this mode whenever a matching source photo exists, especially for asymmetric mechanical
+//   detail (controls, hardware, hinges) that full reconstruction is prone to getting backwards.
 // hero_edit: the hero image itself is edited directly (same camera framing as the hero) --
 //   this is what guarantees a pixel-identical background, since the edit only touches what
 //   the prompt describes and leaves the rest of the hero image untouched.
-// hero_reference: the shot needs a genuinely different camera angle/position than the hero,
-//   so a pixel-identical background isn't physically coherent -- the hero is attached as one
-//   of several reference images purely for material/lighting/palette consistency.
-export type ProductionMode = 'independent' | 'hero_edit' | 'hero_reference';
+// hero_reference: the shot needs a genuinely different camera angle/position than the hero (and
+//   no single source photo already shows it), so a pixel-identical background isn't physically
+//   coherent -- the hero is attached as one of several reference images purely for material/
+//   lighting/palette consistency. Highest risk of geometry reconstruction errors; use sparingly.
+// independent: generated fresh from the original source photos only, no hero involvement. Same
+//   reconstruction risk as hero_reference, without a hero to match style to.
+export type ProductionMode = 'independent' | 'hero_edit' | 'hero_reference' | 'source_edit';
 
 export interface ShotPlan {
   sequenceNumber: number;
@@ -19,6 +27,9 @@ export interface ShotPlan {
   imageJob: string;
   classification: ShotClassification;
   productionMode: ProductionMode;
+  // 0-based index into the uploaded source photos array. Required (non-null) only when
+  // productionMode is "source_edit" -- identifies which exact original photo to edit.
+  sourcePhotoIndex: number | null;
   orientation: ShotOrientation;
   prompt: string;
   saveAs: string;

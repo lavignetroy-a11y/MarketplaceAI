@@ -1,6 +1,11 @@
 import OpenAI from 'openai';
 import { analyzeCampaign } from './analyze';
-import { dataUrlToSourcePhoto, editHeroImage, generateShotImage } from './generateImages';
+import {
+  dataUrlToSourcePhoto,
+  editHeroImage,
+  editSourceImage,
+  generateShotImage,
+} from './generateImages';
 import { getJob, setStatus, updateJob } from './store';
 import type { GeneratedShotResult, ShotOrientation, ShotPlan, SourcePhoto } from './types';
 
@@ -22,16 +27,33 @@ async function generateOneShot(
     };
   }
 
+  if (
+    shot.productionMode === 'source_edit' &&
+    (shot.sourcePhotoIndex === null || !sources[shot.sourcePhotoIndex])
+  ) {
+    return {
+      sequenceNumber: shot.sequenceNumber,
+      imageRole: shot.imageRole,
+      imageJob: shot.imageJob,
+      status: 'error',
+      error: 'Skipped because the shot plan referenced an invalid source photo.',
+    };
+  }
+
   try {
-    const image =
-      shot.productionMode === 'hero_edit'
-        ? await editHeroImage(client, shot, heroReference as SourcePhoto, heroOrientation as ShotOrientation)
-        : await generateShotImage(
-            client,
-            shot,
-            sources,
-            shot.productionMode === 'hero_reference' ? heroReference : null,
-          );
+    let image: string;
+    if (shot.productionMode === 'source_edit') {
+      image = await editSourceImage(client, shot, sources[shot.sourcePhotoIndex as number]);
+    } else if (shot.productionMode === 'hero_edit') {
+      image = await editHeroImage(client, shot, heroReference as SourcePhoto, heroOrientation as ShotOrientation);
+    } else {
+      image = await generateShotImage(
+        client,
+        shot,
+        sources,
+        shot.productionMode === 'hero_reference' ? heroReference : null,
+      );
+    }
     return {
       sequenceNumber: shot.sequenceNumber,
       imageRole: shot.imageRole,

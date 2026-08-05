@@ -82,6 +82,35 @@ export async function editHeroImage(
   return `data:image/png;base64,${b64}`;
 }
 
+// Used for productionMode "source_edit": a specific original source photo is the SOLE input
+// being edited (same guarantee as editHeroImage, but anchored to a real photo instead of the
+// generated hero). This is the strongest defense against geometry errors -- since the model
+// never has to reconstruct structure, it can't mirror or flip an asymmetric feature it's simply
+// preserving. Output size matches the shot's own orientation, since there's no prior generated
+// canvas size to stay locked to.
+export async function editSourceImage(
+  client: OpenAI,
+  shot: ShotPlan,
+  sourcePhoto: SourcePhoto,
+): Promise<string> {
+  const model = process.env.OPENAI_IMAGE_MODEL || 'gpt-image-1';
+
+  const result = await client.images.edit({
+    model,
+    image: toFile(sourcePhoto),
+    prompt: shot.prompt,
+    n: 1,
+    size: sizeForOrientation(shot.orientation),
+    quality: 'high',
+  });
+
+  const b64 = result.data?.[0]?.b64_json;
+  if (!b64) {
+    throw new Error('Image generation returned no image data.');
+  }
+  return `data:image/png;base64,${b64}`;
+}
+
 export function dataUrlToSourcePhoto(dataUrl: string, fileName: string): SourcePhoto {
   const match = dataUrl.match(/^data:(.+);base64,(.*)$/);
   if (!match) {

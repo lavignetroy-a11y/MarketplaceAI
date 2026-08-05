@@ -26,32 +26,46 @@ Requirements specific to this call:
 
 - "shots" must contain EXACTLY the requested_final_image_count number of entries, numbered
   sequenceNumber 1..N with no gaps or repeats.
-- shots[0] is always the hero: sequenceNumber 1, imageRole "hero", productionMode "independent".
-- Every other shot must be assigned exactly one productionMode:
-    "hero_edit" -- use ONLY when the shot keeps the exact same camera position, angle, and
-      distance as the hero (e.g. a tighter crop on the same setup, a material/detail close-up
-      within the same frame, a minor in-place arrangement change). This mode edits the hero
-      image directly and therefore guarantees a pixel-identical background -- but that is only
-      physically coherent when the camera has NOT moved. If this shot's job requires a
-      different camera angle, height, or distance than the hero, do NOT use hero_edit.
-    "hero_reference" -- use when the shot is a marketing shot that needs a genuinely different
-      camera angle/position than the hero (rear, side, top, wider/narrower framing revealing a
-      different part of the room, etc). The hero is attached only as a soft environment/material/
-      lighting-consistency reference, per the DEPENDENT MARKETING SHOT RULE above -- it will not
-      produce an identical background, only a visually consistent one.
-    "independent" -- use for evidence/documentary shots and any marketing shot that does not
-      need environmental continuity with the hero at all.
-  For hero_edit shots, set "orientation" equal to the hero shot's orientation (the canvas is not
-  being resized) and write the prompt as an edit instruction against the hero image itself (e.g.
-  "keep this exact scene and background unchanged; only change ...").
+- shots[0] is always the hero: sequenceNumber 1, imageRole "hero", productionMode "independent",
+  sourcePhotoIndex null.
+- Every other shot must be assigned exactly one productionMode, chosen in this priority order:
+    1. "source_edit" -- ALWAYS PREFER THIS whenever a specific original source photo already
+       shows the exact viewpoint this shot needs (per the ADDITIONAL OPERATING RULES section
+       above: geometry reconstruction is a last resort, not a default). Set sourcePhotoIndex to
+       the 0-based index of that exact photo (the attached images are labeled "SOURCE INDEX 0",
+       "SOURCE INDEX 1", etc, in upload order -- use that number exactly). Write the prompt as an
+       edit instruction against that specific photo (e.g. "keep this exact photo's product
+       geometry, framing, and every control/feature position unchanged; only improve lighting,
+       background, and crop"). This is mandatory for any shot showing asymmetric or
+       handedness-critical mechanical detail (steering wheels, control panels, hinges, handles,
+       ports, switches) when a source photo of that view exists, because reconstructing such
+       detail from scratch is exactly what causes mirrored/backwards geometry errors.
+    2. "hero_edit" -- use ONLY when no source photo covers this exact viewpoint, but the shot
+       keeps the exact same camera position, angle, and distance as the hero (e.g. a tighter crop
+       on the same setup, a material/detail close-up within the same frame). Guarantees a
+       pixel-identical background, but only physically coherent when the camera has NOT moved
+       relative to the hero. For these shots, set "orientation" equal to the hero shot's
+       orientation and sourcePhotoIndex null.
+    3. "hero_reference" -- use only when the shot truly requires a camera angle/position that
+       is covered by NEITHER a source photo NOR the hero's framing, and reconstruction is
+       therefore unavoidable. The hero is attached only as a soft environment/material/lighting
+       reference per the DEPENDENT MARKETING SHOT RULE above -- it will not produce an identical
+       background. sourcePhotoIndex null. Because this mode carries the highest geometry-error
+       risk, explicitly restate in the prompt the exact left/right orientation and layout of any
+       asymmetric feature, drawn from the truth lock, so the model cannot guess it wrong.
+    4. "independent" -- use for evidence/documentary shots not covered by rule 1, and any
+       marketing shot needing no continuity with the hero. sourcePhotoIndex null.
+- Never invent a human figure in any shot's prompt unless that exact source photo (source_edit
+  mode) already contains a real person being conservatively edited. Do not add a person to a
+  hero_edit, hero_reference, or independent shot.
 - Each shot's "prompt" field must be one complete, self-contained image-generation prompt written
   for an image-editing model that will receive reference images appropriate to its
-  productionMode (original source photos for independent/hero_reference shots, the hero image
-  alone for hero_edit shots, plus the hero as an extra reference for hero_reference shots).
-  Since the model receiving that prompt has no other context, the prompt text itself must
-  restate the product truth lock, the permitted enhancements, the forbidden changes, and the
-  never-generate list as they apply to that specific shot -- do not write a short prompt that
-  assumes shared context.
+  productionMode (the one named source photo for source_edit, the hero image alone for hero_edit,
+  original source photos plus the hero for hero_reference, original source photos only for
+  independent). Since the model receiving that prompt has no other context, the prompt text
+  itself must restate the product truth lock, the permitted enhancements, the forbidden changes,
+  and the never-generate list as they apply to that specific shot -- do not write a short prompt
+  that assumes shared context.
 - If, and only if, truthful completion of the requested count is impossible with the given
   photos, set readyForGeneration to false, explain why in reasonNotReady, list the precise
   minimum additional evidence needed, and you may still return a best-effort "shots" array (it
@@ -115,7 +129,11 @@ const analysisSchema = {
           imageRole: { type: 'string' },
           imageJob: { type: 'string' },
           classification: { type: 'string', enum: ['marketing', 'evidence'] },
-          productionMode: { type: 'string', enum: ['independent', 'hero_edit', 'hero_reference'] },
+          productionMode: {
+            type: 'string',
+            enum: ['independent', 'hero_edit', 'hero_reference', 'source_edit'],
+          },
+          sourcePhotoIndex: { type: ['integer', 'null'] },
           orientation: { type: 'string', enum: ['square', 'portrait', 'landscape'] },
           prompt: { type: 'string' },
           saveAs: { type: 'string' },
@@ -126,6 +144,7 @@ const analysisSchema = {
           'imageJob',
           'classification',
           'productionMode',
+          'sourcePhotoIndex',
           'orientation',
           'prompt',
           'saveAs',
@@ -158,18 +177,22 @@ export async function analyzeCampaign(
 ): Promise<AnalysisResult> {
   const model = process.env.OPENAI_TEXT_MODEL || 'gpt-4o';
 
-  const imageParts = sources.map((source, i) => ({
-    type: 'image_url' as const,
-    image_url: {
-      url: `data:${source.mimeType};base64,${source.data.toString('base64')}`,
-      detail: 'high' as const,
+  const imageParts = sources.flatMap((source, i) => [
+    { type: 'text' as const, text: `SOURCE INDEX ${i}:` },
+    {
+      type: 'image_url' as const,
+      image_url: {
+        url: `data:${source.mimeType};base64,${source.data.toString('base64')}`,
+        detail: 'high' as const,
+      },
     },
-  }));
+  ]);
 
   const userText = [
     `requested_final_image_count: ${requestedCount}`,
     `seller_notes: ${sellerNotes.trim() || 'none provided'}`,
-    `source photo count: ${sources.length} (attached below, in upload order -- the first image is SOURCE_01, and so on)`,
+    `source photo count: ${sources.length} (attached below, each preceded by its 0-based ` +
+      `"SOURCE INDEX" label -- use that exact number for any shot's sourcePhotoIndex)`,
     'Analyze these source photographs as one item or matching set and produce the structured campaign plan.',
   ].join('\n');
 
@@ -209,6 +232,19 @@ export async function analyzeCampaign(
     const expected = Array.from({ length: requestedCount }, (_, i) => i + 1);
     if (JSON.stringify(sequences) !== JSON.stringify(expected)) {
       throw new Error('Analysis returned shots with invalid or duplicate sequence numbers.');
+    }
+    for (const shot of parsed.shots) {
+      if (shot.productionMode === 'source_edit') {
+        if (
+          shot.sourcePhotoIndex === null ||
+          shot.sourcePhotoIndex < 0 ||
+          shot.sourcePhotoIndex >= sources.length
+        ) {
+          throw new Error(
+            `Shot ${shot.sequenceNumber} is source_edit but has an invalid sourcePhotoIndex.`,
+          );
+        }
+      }
     }
   }
 

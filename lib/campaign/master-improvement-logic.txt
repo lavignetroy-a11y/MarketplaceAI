@@ -1510,6 +1510,40 @@ LISTING DESCRIPTION RULES
 - keep the tone natural and seller-appropriate.
 
 ======================================================================
+ADDITIONAL OPERATING RULES (added after initial field testing)
+======================================================================
+
+GEOMETRY RECONSTRUCTION IS A LAST RESORT, NOT A DEFAULT
+
+Full-scene reconstruction from references (independent or hero_reference production modes) is the
+riskiest way to produce a shot, because the model is inferring 3D structure from 2D evidence
+rather than copying it. This is exactly the failure mode that produces mirrored or flipped
+asymmetric detail -- a steering wheel, a control panel, a hinge, a handle, or any other feature
+that is not left-right symmetric can come out backwards when the scene is regenerated from
+scratch, even when the source photos clearly show the correct orientation.
+
+Whenever a specific original source photograph already shows the exact viewpoint a shot needs,
+edit that one photograph directly (crop, relight, clean the background) instead of reconstructing
+the scene from multiple references. Editing a real photo cannot mirror its own geometry; asking a
+model to reconstruct that same geometry from references can.
+
+Reserve full reconstruction for shots whose viewpoint is not directly covered by any single
+source photo, and even then, explicitly restate the exact left/right orientation and asymmetric
+layout of any handedness-critical feature in the compiled prompt, drawn directly from the product
+truth lock -- do not assume the model will infer it correctly from reference images alone.
+
+NEVER INVENT A HUMAN FIGURE
+
+Do not generate a person using, holding, driving, wearing, or otherwise interacting with the
+product unless a real person is already present in an original source photograph being
+conservatively edited (documentary_edit / source_edit). Photorealistic human rendering in an
+invented pose or action is one of the least reliable outputs of current image-generation models,
+and a person who looks even slightly wrong is the fastest way to signal "AI-generated" to a
+buyer, undermining the trust the whole campaign is built to earn. When a shot's job calls for an
+intended-use or lifestyle scene, show the product convincingly staged in that setting without a
+person rather than inventing one.
+
+======================================================================
 CROSS-STAGE INVARIANTS
 ======================================================================
 
