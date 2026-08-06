@@ -2,16 +2,16 @@
 
 import { useEffect, useRef, useState } from 'react';
 
-// The marketing site's imagery starts blank on purpose -- these <img> tags point at real paths
-// under /public/images/... that don't have files yet. Drop a matching file in later (or wire up
-// a real upload) and it will simply start rendering, no code changes needed. Until then, this
-// shows a quiet placeholder instead of a broken-image icon.
+// Marketing imagery lives under /public/images/... . Any file that isn't there yet renders a
+// quiet placeholder instead of a broken-image icon, so a missing photo never breaks the page --
+// drop the file in later and it starts rendering with no code change.
 export function PlaceholderImage({
   src,
   alt,
   className = '',
   decorative = false,
   objectPosition,
+  style,
 }: {
   src: string;
   alt: string;
@@ -21,6 +21,7 @@ export function PlaceholderImage({
   /** CSS object-position. The hero's card slots are far taller than the source photos, so the
    *  default centre crop can miss the subject; this aims the crop at it. */
   objectPosition?: string;
+  style?: React.CSSProperties;
 }) {
   const [failed, setFailed] = useState(false);
   const imgRef = useRef<HTMLImageElement>(null);
@@ -38,11 +39,12 @@ export function PlaceholderImage({
     return (
       <div
         className={`flex items-center justify-center bg-marketplace-canvas ${className}`}
+        style={style}
         role="img"
         aria-label={alt}
       >
         {!decorative && (
-          <span className="text-[10px] font-medium tracking-wide text-marketplace-muted-light">
+          <span className="px-1 text-center text-[10px] font-medium leading-tight tracking-wide text-marketplace-muted-light">
             Image coming soon
           </span>
         )}
@@ -56,7 +58,7 @@ export function PlaceholderImage({
       src={src}
       alt={alt}
       className={`object-cover ${className}`}
-      style={objectPosition ? { objectPosition } : undefined}
+      style={objectPosition ? { ...style, objectPosition } : style}
       onError={() => setFailed(true)}
     />
   );

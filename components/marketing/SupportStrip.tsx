@@ -23,9 +23,28 @@ const ITEMS = [
   },
 ];
 
+// lucide icons draw with `stroke="currentColor"`, which can't take a gradient. Pointing their
+// stroke at an SVG gradient defined once on the page gives the reference's violet-to-blue
+// icon strokes. The <defs> carrier is zero-size and hidden from assistive tech.
+const ICON_GRADIENT_ID = 'marketplace-icon-gradient';
+
+function IconGradientDefs() {
+  return (
+    <svg width="0" height="0" className="absolute" aria-hidden="true" focusable="false">
+      <defs>
+        <linearGradient id={ICON_GRADIENT_ID} x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" stopColor="#7A5CFF" />
+          <stop offset="100%" stopColor="#4D82FF" />
+        </linearGradient>
+      </defs>
+    </svg>
+  );
+}
+
 export function SupportStrip() {
   return (
     <div className="rounded-brand-lg border border-marketplace-line/70 bg-white/70 p-6 shadow-soft backdrop-blur md:p-8">
+      <IconGradientDefs />
       <div className="grid grid-cols-1 gap-y-8 sm:grid-cols-2 lg:grid-cols-4">
         {ITEMS.map(({ icon: Icon, title, body }, i) => (
           <div
@@ -35,8 +54,13 @@ export function SupportStrip() {
               i > 0 ? 'lg:border-l lg:border-marketplace-line/70' : ''
             } ${i === 0 ? 'lg:pl-1' : ''} ${i === ITEMS.length - 1 ? 'lg:pr-1' : ''}`}
           >
-            <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-marketplace-violet/15 to-marketplace-blue/15">
-              <Icon className="h-[1.15rem] w-[1.15rem] text-marketplace-violet" aria-hidden="true" />
+            <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-marketplace-violet/[0.13] to-marketplace-blue/[0.13]">
+              <Icon
+                className="h-[1.3rem] w-[1.3rem]"
+                stroke={`url(#${ICON_GRADIENT_ID})`}
+                strokeWidth={2}
+                aria-hidden="true"
+              />
             </span>
             <div>
               <p className="text-[0.9375rem] font-semibold tracking-[-0.015em] text-marketplace-ink">

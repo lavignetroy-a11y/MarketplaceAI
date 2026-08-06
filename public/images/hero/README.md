@@ -10,6 +10,9 @@ Current files:
 - `alt-1.webp` -- a texture/detail shot from the campaign.
 - `alt-2.webp` -- an alternate angle (side profile).
 - `alt-3.webp` -- a further angle (rear view).
+- `alt-4.webp` -- **NOT SUPPLIED YET.** The last card in the fan renders its
+  "Image coming soon" placeholder until this file is added. It's the furthest-back card, so
+  only a narrow sliver of it is visible.
 
 ## If you replace these
 

@@ -18,16 +18,12 @@ export function Hero() {
 
   return (
     <section className="section-compact relative overflow-hidden">
-      <div className="page-shell mx-auto grid max-w-page items-center gap-14 px-1 lg:grid-cols-[minmax(0,0.88fr)_minmax(0,1.12fr)] lg:gap-6">
+      <div className="page-shell mx-auto grid max-w-page items-center gap-14 px-1 lg:grid-cols-[minmax(0,0.78fr)_minmax(0,1.22fr)] lg:gap-4">
         <div className="max-w-[520px]">
-          <h1 className="text-[clamp(2.9rem,5.3vw,4.75rem)] font-[650] leading-[0.94] tracking-[-0.058em] text-marketplace-ink">
-            Make your
+          <h1 className="text-[clamp(2.6rem,4.6vw,4.25rem)] font-[650] leading-[0.98] tracking-[-0.058em] text-marketplace-ink">
+            Make your listing
             <br />
-            listing look
-            <br />
-            worth
-            <br />
-            <span className="bg-violet-blue bg-clip-text text-transparent">clicking.</span>
+            <span className="bg-violet-blue bg-clip-text text-transparent">worth clicking.</span>
           </h1>
 
           <p className="mt-7 max-w-[430px] text-[1.0625rem] leading-[1.62] tracking-[-0.014em] text-marketplace-muted">
@@ -72,11 +68,9 @@ export function Hero() {
               setDragActive(false);
               goToUpload();
             }}
-            className={`mt-8 flex max-w-[460px] cursor-pointer items-center gap-4 rounded-brand-lg border border-dashed p-5 text-left transition-colors ${
-              dragActive
-                ? 'border-marketplace-violet bg-marketplace-violet/5'
-                : 'border-marketplace-line bg-white/60'
-            }`}
+            // Outer surface: a plain light card. The dashed drop target is nested inside it,
+            // sitting on a slightly cooler grey so the droppable area reads as its own region.
+            className="mt-8 max-w-[470px] cursor-pointer rounded-brand-lg border border-marketplace-line/60 bg-white/70 p-2 text-left shadow-[0_10px_30px_rgba(12,13,18,0.05)] transition-colors"
           >
             <input
               ref={fileInputRef}
@@ -86,18 +80,28 @@ export function Hero() {
               className="hidden"
               onChange={goToUpload}
             />
-            <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-violet-blue text-white">
-              <Plus className="h-5 w-5" aria-hidden="true" />
-            </span>
-            <div>
-              <p className="text-[1rem] font-semibold tracking-[-0.015em] text-marketplace-ink">
-                Drop your listing photos here
-                <span className="ml-1 font-semibold text-marketplace-violet">or choose files</span>
-              </p>
-              <p className="mt-1 flex items-center gap-1.5 text-[0.8125rem] text-marketplace-muted">
-                <Lock className="h-3.5 w-3.5" aria-hidden="true" />
-                Your photos stay private.
-              </p>
+            <div
+              className={`flex items-center gap-4 rounded-[22px] border border-dashed px-5 py-[18px] transition-colors ${
+                dragActive
+                  ? 'border-marketplace-violet bg-marketplace-violet/[0.06]'
+                  : 'border-marketplace-line bg-marketplace-canvas/55'
+              }`}
+            >
+              <span className="flex h-[52px] w-[52px] shrink-0 items-center justify-center rounded-full bg-violet-blue text-white shadow-[0_6px_16px_rgba(122,92,255,0.35)]">
+                <Plus className="h-[22px] w-[22px]" strokeWidth={2.25} aria-hidden="true" />
+              </span>
+              <div>
+                <p className="text-[1rem] font-semibold leading-[1.35] tracking-[-0.015em] text-marketplace-ink">
+                  Drop your listing photos here
+                </p>
+                <p className="text-[0.9375rem] font-medium leading-[1.35] text-marketplace-violet">
+                  or choose files
+                </p>
+                <p className="mt-1.5 flex items-center gap-1.5 text-[0.8125rem] text-marketplace-muted">
+                  <Lock className="h-3.5 w-3.5" aria-hidden="true" />
+                  Your photos stay private.
+                </p>
+              </div>
             </div>
           </div>
         </div>
@@ -105,7 +109,7 @@ export function Hero() {
         <HeroVisual />
       </div>
 
-      <div className="page-shell mx-auto mt-16 max-w-page px-1 md:mt-20">
+      <div className="page-shell mx-auto mt-4 max-w-page px-1 md:mt-6">
         <SupportStrip />
       </div>
 

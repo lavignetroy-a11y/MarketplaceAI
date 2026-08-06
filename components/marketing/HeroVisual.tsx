@@ -3,8 +3,8 @@ import { PlaceholderImage } from './PlaceholderImage';
 // The fan is laid out in fixed pixels against a design stage measured off the approved hero
 // reference. Desktop and small screens get their own stage rather than one being a scaled copy
 // of the other -- a CSS scale() doesn't shrink the layout box, which overflows the page on
-// mobile, and the reference's five-card fan is unreadable at phone width anyway.
-const DESKTOP_STAGE = { w: 660, h: 600 };
+// mobile, and the reference's six-card fan is unreadable at phone width anyway.
+const DESKTOP_STAGE = { w: 820, h: 656 };
 const MOBILE_STAGE = { w: 330, h: 350 };
 
 type FanCard = {
@@ -33,9 +33,9 @@ const DESKTOP_CARDS: FanCard[] = [
     objectPosition: '62% 50%',
     alt: 'An ordinary, unedited seller photo of the item',
     left: 0,
-    top: 122,
-    width: 148,
-    height: 282,
+    top: 142,
+    width: 172,
+    height: 328,
     rotateY: 13,
     z: 10,
     frame: 'thin',
@@ -45,46 +45,58 @@ const DESKTOP_CARDS: FanCard[] = [
     src: '/images/hero/main.webp',
     objectPosition: '47% 50%',
     alt: 'The item, professionally presented in a clean, well-lit setting',
-    left: 128,
-    top: 78,
-    width: 256,
-    height: 352,
+    left: 149,
+    top: 84,
+    width: 303,
+    height: 414,
     rotateY: 0,
-    z: 40,
+    z: 50,
     frame: 'thick',
   },
   {
     src: '/images/hero/alt-1.webp',
     objectPosition: '40% 50%',
-    alt: 'An alternate angle from the finished listing campaign',
-    left: 366,
-    top: 118,
-    width: 118,
-    height: 286,
-    rotateY: -26,
-    z: 30,
+    alt: 'A texture detail from the finished listing campaign',
+    left: 432,
+    top: 129,
+    width: 138,
+    height: 335,
+    rotateY: -25,
+    z: 40,
     frame: 'thin',
   },
   {
     src: '/images/hero/alt-2.webp',
     objectPosition: '42% 50%',
-    alt: 'A texture detail from the finished listing campaign',
-    left: 448,
-    top: 138,
-    width: 112,
-    height: 258,
-    rotateY: -29,
-    z: 20,
+    alt: 'An alternate angle from the finished listing campaign',
+    left: 527,
+    top: 149,
+    width: 131,
+    height: 305,
+    rotateY: -28,
+    z: 30,
     frame: 'thin',
   },
   {
     src: '/images/hero/alt-3.webp',
     objectPosition: '50% 50%',
+    alt: 'A rear view from the finished listing campaign',
+    left: 615,
+    top: 170,
+    width: 124,
+    height: 278,
+    rotateY: -30,
+    z: 20,
+    frame: 'thin',
+  },
+  {
+    src: '/images/hero/alt-4.webp',
+    objectPosition: '50% 50%',
     alt: 'A further view from the finished listing campaign',
-    left: 524,
-    top: 158,
-    width: 108,
-    height: 232,
+    left: 696,
+    top: 188,
+    width: 118,
+    height: 253,
     rotateY: -32,
     z: 10,
     frame: 'thin',
@@ -120,7 +132,7 @@ const MOBILE_CARDS: FanCard[] = [
   {
     src: '/images/hero/alt-1.webp',
     objectPosition: '40% 50%',
-    alt: 'An alternate angle from the finished listing campaign',
+    alt: 'A texture detail from the finished listing campaign',
     left: 228,
     top: 72,
     width: 80,
@@ -132,18 +144,36 @@ const MOBILE_CARDS: FanCard[] = [
 ];
 
 function Card({ card, compact }: { card: FanCard; compact?: boolean }) {
-  const frame =
-    card.frame === 'thick'
-      ? {
-          outer: compact ? 'rounded-[16px] border-[5px] shadow-lift' : 'rounded-[22px] border-[7px] shadow-lift',
-          inner: compact ? 'rounded-[11px]' : 'rounded-[15px]',
-        }
-      : {
-          outer: compact ? 'rounded-[12px] border-[4px] shadow-soft' : 'rounded-[16px] border-[5px] shadow-soft',
-          inner: compact ? 'rounded-[8px]' : 'rounded-[11px]',
-        };
+  const thick = card.frame === 'thick';
+  // The frame is padding rather than a border, so it can carry a gradient -- that soft
+  // light-to-shadow fall across the mount is what makes it read as a physical print rather
+  // than a flat white stroke. Kept deliberately thin, per the reference.
+  const pad = thick ? (compact ? 4 : 5) : compact ? 3 : 4;
+  const outerRadius = thick ? (compact ? 15 : 19) : compact ? 12 : 15;
+  const innerRadius = outerRadius - pad;
 
-  const box = { width: card.width, height: card.height };
+  const frameStyle = {
+    width: card.width,
+    height: card.height,
+    padding: pad,
+    borderRadius: outerRadius,
+    background: 'linear-gradient(152deg, #ffffff 0%, #ffffff 52%, #e9ecf4 100%)',
+  } as const;
+
+  const shadow = thick
+    ? '0 22px 46px rgba(12,13,18,0.15), 0 3px 9px rgba(12,13,18,0.06)'
+    : '0 14px 32px rgba(12,13,18,0.11), 0 2px 6px rgba(12,13,18,0.045)';
+
+  const image = (decorative: boolean) => (
+    <PlaceholderImage
+      src={card.src}
+      alt={decorative ? '' : card.alt}
+      decorative={decorative}
+      objectPosition={card.objectPosition}
+      className={`h-full w-full ${card.muted ? 'saturate-[0.85]' : ''}`}
+      style={{ borderRadius: innerRadius }}
+    />
+  );
 
   return (
     <div
@@ -155,35 +185,20 @@ function Card({ card, compact }: { card: FanCard; compact?: boolean }) {
         transform: `rotateY(${card.rotateY}deg)`,
       }}
     >
-      <div className={`overflow-hidden border-white bg-white ${frame.outer}`} style={box}>
-        <PlaceholderImage
-          src={card.src}
-          alt={card.alt}
-          className={`h-full w-full ${frame.inner} ${card.muted ? 'saturate-[0.85]' : ''}`}
-          objectPosition={card.objectPosition}
-        />
-      </div>
+      <div style={{ ...frameStyle, boxShadow: shadow }}>{image(false)}</div>
 
-      {/* Mirror reflection on the glossy surface below, fading out with distance. No frame or
-          shadow on the reflection itself -- a mirrored white border reads as a second card. */}
+      {/* Mirror reflection on the glossy surface below, fading out with distance. The frame is
+          mirrored along with the photo -- reflecting only the image reads as a floating crop. */}
       <div
         aria-hidden="true"
-        className="pointer-events-none mt-[5px] overflow-hidden opacity-50"
+        className="pointer-events-none mt-[6px] overflow-hidden opacity-[0.45]"
         style={{
-          height: Math.round(card.height * 0.34),
-          maskImage: 'linear-gradient(to bottom, rgba(0,0,0,0.5), transparent 68%)',
-          WebkitMaskImage: 'linear-gradient(to bottom, rgba(0,0,0,0.5), transparent 68%)',
+          height: Math.round(card.height * 0.36),
+          maskImage: 'linear-gradient(to bottom, rgba(0,0,0,0.62), transparent 70%)',
+          WebkitMaskImage: 'linear-gradient(to bottom, rgba(0,0,0,0.62), transparent 70%)',
         }}
       >
-        <div className={`overflow-hidden ${frame.inner}`} style={{ ...box, transform: 'scaleY(-1)' }}>
-          <PlaceholderImage
-            src={card.src}
-            alt=""
-            decorative
-            className={`h-full w-full ${frame.inner}`}
-            objectPosition={card.objectPosition}
-          />
-        </div>
+        <div style={{ ...frameStyle, transform: 'scaleY(-1)' }}>{image(true)}</div>
       </div>
     </div>
   );
@@ -205,7 +220,7 @@ function Callout({
 }) {
   return (
     <div
-      className="absolute z-50 flex flex-col items-center"
+      className="absolute z-[60] flex flex-col items-center"
       style={{ left, top, transform: center ? 'translateX(-50%)' : undefined }}
     >
       <div className="whitespace-nowrap rounded-full border border-marketplace-line/70 bg-white/95 px-4 py-2 text-[0.8125rem] font-medium text-marketplace-ink shadow-soft backdrop-blur">
@@ -242,7 +257,7 @@ function Stage({
         style={{
           width: size.w,
           height: size.h,
-          perspective: '1150px',
+          perspective: '1250px',
           perspectiveOrigin: '42% 38%',
         }}
       >
@@ -255,19 +270,19 @@ function Stage({
 export function HeroVisual() {
   return (
     <>
-      {/* Desktop: the full five-card fan from the reference. */}
+      {/* Desktop: the full six-card fan from the reference. */}
       <Stage size={DESKTOP_STAGE} className="hidden lg:block">
         {/* fine orbital arc tying the callouts together */}
         <svg
           className="pointer-events-none absolute left-0 top-0"
           width={DESKTOP_STAGE.w}
-          height={70}
-          viewBox={`0 0 ${DESKTOP_STAGE.w} 70`}
+          height={74}
+          viewBox={`0 0 ${DESKTOP_STAGE.w} 74`}
           fill="none"
           aria-hidden="true"
         >
           <path
-            d={`M30 64 Q ${DESKTOP_STAGE.w / 2} -4 ${DESKTOP_STAGE.w - 30} 64`}
+            d={`M30 68 Q ${DESKTOP_STAGE.w / 2} -4 ${DESKTOP_STAGE.w - 30} 68`}
             stroke="#DFE4EF"
             strokeWidth="1"
           />
@@ -281,7 +296,7 @@ export function HeroVisual() {
         {/* glossy surface highlight the fan sits on */}
         <div
           className="pointer-events-none absolute left-[6%] right-[6%] h-24 rounded-[50%] bg-white/70 blur-2xl"
-          style={{ top: 400 }}
+          style={{ top: 468 }}
           aria-hidden="true"
         />
 
@@ -289,16 +304,16 @@ export function HeroVisual() {
           <Card key={card.src} card={card} />
         ))}
 
-        <Callout left={4} top={58} tail={26}>
+        <Callout left={4} top={62} tail={44}>
           Your original photos
         </Callout>
-        <Callout left={DESKTOP_STAGE.w / 2} top={26} tail={14} center>
+        <Callout left={DESKTOP_STAGE.w / 2} top={28} tail={20} center>
           Cleaner first impression
         </Callout>
-        <Callout left={476} top={62} tail={32}>
+        <Callout left={578} top={70} tail={43}>
           More buyer confidence
         </Callout>
-        <Callout left={392} top={474}>
+        <Callout left={480} top={556}>
           A complete listing set
         </Callout>
       </Stage>
