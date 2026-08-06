@@ -31,7 +31,7 @@ export async function generateShotImage(
   sources: SourcePhoto[],
   heroReference: SourcePhoto | null,
 ): Promise<string> {
-  const model = process.env.OPENAI_IMAGE_MODEL || 'gpt-image-1';
+  const model = process.env.OPENAI_IMAGE_MODEL || 'gpt-image-2';
 
   const referenceBudget = heroReference ? MAX_REFERENCE_IMAGES - 1 : MAX_REFERENCE_IMAGES;
   const references = pickReferenceSources(sources, referenceBudget).map(toFile);
@@ -64,7 +64,7 @@ export async function editHeroImage(
   heroReference: SourcePhoto,
   heroOrientation: ShotOrientation,
 ): Promise<string> {
-  const model = process.env.OPENAI_IMAGE_MODEL || 'gpt-image-1';
+  const model = process.env.OPENAI_IMAGE_MODEL || 'gpt-image-2';
 
   const result = await client.images.edit({
     model,
@@ -93,7 +93,7 @@ export async function editSourceImage(
   shot: ShotPlan,
   sourcePhoto: SourcePhoto,
 ): Promise<string> {
-  const model = process.env.OPENAI_IMAGE_MODEL || 'gpt-image-1';
+  const model = process.env.OPENAI_IMAGE_MODEL || 'gpt-image-2';
 
   const result = await client.images.edit({
     model,

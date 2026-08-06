@@ -1,5 +1,19 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --font-sans: 'Geist', Arial, sans-serif;
+  --font-editorial: 'Newsreader', Georgia, serif;
+  --font-mono: 'Geist Mono', 'SFMono-Regular', Consolas, monospace;
+}
+
 * {
   box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
 }
 
 html,
@@ -9,20 +23,60 @@ body {
 }
 
 body {
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
-  background: #f5f6fa;
-  color: #1a1a2e;
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
 }
 
-main {
+img,
+video {
+  display: block;
+  max-width: 100%;
+}
+
+::selection {
+  color: #0c0d12;
+  background: rgba(122, 92, 255, 0.18);
+}
+
+:focus-visible {
+  outline: 3px solid #7a5cff;
+  outline-offset: 3px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+@layer components {
+  .page-shell {
+    width: min(100% - 40px, 1440px);
+    margin-inline: auto;
+  }
+
+  .section {
+    padding-block: clamp(80px, 9vw, 150px);
+  }
+
+  .section-compact {
+    padding-block: clamp(60px, 7vw, 110px);
+  }
+}
+
+/* --- Styles below this line are for the /upload application flow (not the marketing site). --- */
+
+.upload-shell {
   max-width: 720px;
   margin: 0 auto;
   padding: 48px 20px 80px;
-}
-
-h1 {
-  font-size: 2rem;
-  margin-bottom: 4px;
 }
 
 .subtitle {
@@ -101,15 +155,15 @@ h1 {
   font-size: 0.85rem;
 }
 
-label {
+.upload-shell label {
   display: block;
   font-weight: 600;
   margin-bottom: 6px;
   font-size: 0.9rem;
 }
 
-select,
-textarea {
+.upload-shell select,
+.upload-shell textarea {
   width: 100%;
   padding: 10px;
   border-radius: 8px;
@@ -118,7 +172,7 @@ textarea {
   font-family: inherit;
 }
 
-textarea {
+.upload-shell textarea {
   resize: vertical;
   min-height: 70px;
 }
