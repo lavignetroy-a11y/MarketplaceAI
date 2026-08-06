@@ -41,7 +41,7 @@ const config: Config = {
 
       fontSize: {
         'hero-mobile': ['3.5rem', { lineHeight: '0.94', letterSpacing: '-0.055em', fontWeight: '650' }],
-        hero: ['5.5rem', { lineHeight: '0.94', letterSpacing: '-0.058em', fontWeight: '650' }],
+        hero: ['4.75rem', { lineHeight: '0.94', letterSpacing: '-0.058em', fontWeight: '650' }],
         'section-display': ['4.5rem', { lineHeight: '0.99', letterSpacing: '-0.048em', fontWeight: '620' }],
         'section-title': ['3.25rem', { lineHeight: '1.02', letterSpacing: '-0.042em', fontWeight: '620' }],
         'editorial-display': ['4.75rem', { lineHeight: '0.98', letterSpacing: '-0.035em', fontWeight: '500' }],

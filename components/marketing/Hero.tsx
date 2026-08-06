@@ -18,9 +18,9 @@ export function Hero() {
 
   return (
     <section className="section-compact relative overflow-hidden">
-      <div className="page-shell mx-auto grid max-w-page items-center gap-16 px-1 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] lg:gap-8">
-        <div className="max-w-[560px]">
-          <h1 className="max-w-[8.5ch] text-[3.5rem] font-[650] leading-[0.94] tracking-[-0.058em] text-marketplace-ink [text-wrap:balance] md:text-[4.5rem] lg:text-hero">
+      <div className="page-shell mx-auto grid max-w-page items-center gap-14 px-1 lg:grid-cols-[minmax(0,0.88fr)_minmax(0,1.12fr)] lg:gap-6">
+        <div className="max-w-[520px]">
+          <h1 className="text-[clamp(2.9rem,5.3vw,4.75rem)] font-[650] leading-[0.94] tracking-[-0.058em] text-marketplace-ink">
             Make your
             <br />
             listing look
@@ -30,7 +30,7 @@ export function Hero() {
             <span className="bg-violet-blue bg-clip-text text-transparent">clicking.</span>
           </h1>
 
-          <p className="mt-7 max-w-copy text-[1.0625rem] leading-[1.6] tracking-[-0.014em] text-marketplace-muted md:text-body-large">
+          <p className="mt-7 max-w-[430px] text-[1.0625rem] leading-[1.62] tracking-[-0.014em] text-marketplace-muted">
             Turn the photos you already have into polished marketplace images that attract more
             buyers, build confidence, and help your item stand out.
           </p>
@@ -72,7 +72,7 @@ export function Hero() {
               setDragActive(false);
               goToUpload();
             }}
-            className={`mt-8 flex cursor-pointer items-center gap-4 rounded-brand-lg border border-dashed p-5 text-left transition-colors ${
+            className={`mt-8 flex max-w-[460px] cursor-pointer items-center gap-4 rounded-brand-lg border border-dashed p-5 text-left transition-colors ${
               dragActive
                 ? 'border-marketplace-violet bg-marketplace-violet/5'
                 : 'border-marketplace-line bg-white/60'

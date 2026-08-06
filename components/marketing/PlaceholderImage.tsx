@@ -10,10 +10,13 @@ export function PlaceholderImage({
   src,
   alt,
   className = '',
+  decorative = false,
 }: {
   src: string;
   alt: string;
   className?: string;
+  /** Suppresses the placeholder caption -- used for mirror reflections, where mirrored text reads as a glitch. */
+  decorative?: boolean;
 }) {
   const [failed, setFailed] = useState(false);
   const imgRef = useRef<HTMLImageElement>(null);
@@ -34,9 +37,11 @@ export function PlaceholderImage({
         role="img"
         aria-label={alt}
       >
-        <span className="text-[10px] font-medium tracking-wide text-marketplace-muted-light">
-          Image coming soon
-        </span>
+        {!decorative && (
+          <span className="text-[10px] font-medium tracking-wide text-marketplace-muted-light">
+            Image coming soon
+          </span>
+        )}
       </div>
     );
   }
