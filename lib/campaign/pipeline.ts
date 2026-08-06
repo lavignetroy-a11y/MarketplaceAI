@@ -6,8 +6,18 @@ import {
   editSourceImage,
   generateShotImage,
 } from './generateImages';
-import { getJob, setStatus, updateJob } from './store';
+import { getJob, persistImageResult, setStatus, updateJob } from './store';
+import { applyPreviewWatermark, bufferToDataUrl, dataUrlToBuffer } from './watermark';
 import type { GeneratedShotResult, ShotOrientation, ShotPlan, SourcePhoto } from './types';
+
+// The pipeline runs in two phases around the payment gate:
+//
+//   Phase 1 (free)  -- analyse the set, generate the hero, watermark it. This is the proof a
+//                      seller sees on their own item before spending anything.
+//   Phase 2 (paid)  -- generate every remaining shot and release the hero unwatermarked.
+//
+// Splitting it this way means exactly one image is generated for a visitor who never pays,
+// which is what keeps the economics viable at $1/image.
 
 async function generateOneShot(
   client: OpenAI,
@@ -45,7 +55,12 @@ async function generateOneShot(
     if (shot.productionMode === 'source_edit') {
       image = await editSourceImage(client, shot, sources[shot.sourcePhotoIndex as number]);
     } else if (shot.productionMode === 'hero_edit') {
-      image = await editHeroImage(client, shot, heroReference as SourcePhoto, heroOrientation as ShotOrientation);
+      image = await editHeroImage(
+        client,
+        shot,
+        heroReference as SourcePhoto,
+        heroOrientation as ShotOrientation,
+      );
     } else {
       image = await generateShotImage(
         client,
@@ -72,18 +87,26 @@ async function generateOneShot(
   }
 }
 
-export async function runCampaign(jobId: string): Promise<void> {
-  const job = getJob(jobId);
-  if (!job) return;
-
+function openAiClient(jobId: string): OpenAI | null {
   const apiKey = process.env.OPENAI_API_KEY;
   if (!apiKey) {
     setStatus(jobId, 'failed');
     updateJob(jobId, { error: 'Server is missing OPENAI_API_KEY.' });
-    return;
+    return null;
   }
+  return new OpenAI({ apiKey });
+}
 
-  const client = new OpenAI({ apiKey });
+/**
+ * Phase 1 -- free. Analyses the uploaded set and generates a single watermarked hero image.
+ * Stops at `preview_ready`; nothing further is generated until the campaign is paid for.
+ */
+export async function runPreview(jobId: string): Promise<void> {
+  const job = getJob(jobId);
+  if (!job) return;
+
+  const client = openAiClient(jobId);
+  if (!client) return;
 
   try {
     setStatus(jobId, 'analyzing');
@@ -92,49 +115,119 @@ export async function runCampaign(jobId: string): Promise<void> {
 
     if (!analysis.readyForGeneration) {
       setStatus(jobId, 'needs_more_evidence', analysis.reasonNotReady);
-      updateJob(jobId, { minimumAdditionalEvidenceNeeded: analysis.minimumAdditionalEvidenceNeeded });
+      updateJob(jobId, {
+        minimumAdditionalEvidenceNeeded: analysis.minimumAdditionalEvidenceNeeded,
+      });
       return;
     }
 
-    const [heroShot, ...remainingShots] = analysis.shots;
-
-    setStatus(jobId, 'generating_hero');
+    setStatus(jobId, 'generating_preview');
+    const heroShot = analysis.shots[0];
     const heroResult = await generateOneShot(client, heroShot, job.sources, null, null);
-    const heroReference =
-      heroResult.status === 'done' && heroResult.image
-        ? dataUrlToSourcePhoto(heroResult.image, 'approved_hero.png')
-        : null;
-    const heroOrientation = heroReference ? heroShot.orientation : null;
 
-    setStatus(jobId, 'generating');
-    const remainingResults = await Promise.all(
-      remainingShots.map((shot) =>
-        generateOneShot(client, shot, job.sources, heroReference, heroOrientation),
-      ),
+    if (heroResult.status !== 'done' || !heroResult.image) {
+      setStatus(jobId, 'failed');
+      updateJob(jobId, { error: heroResult.error ?? 'The preview image could not be generated.' });
+      return;
+    }
+
+    // Keep the clean hero server-side; release only the watermarked copy until payment.
+    const watermarked = bufferToDataUrl(
+      await applyPreviewWatermark(dataUrlToBuffer(heroResult.image)),
     );
 
-    const results: GeneratedShotResult[] = [heroResult, ...remainingResults].sort(
-      (a, b) => a.sequenceNumber - b.sequenceNumber,
-    );
+    const results: GeneratedShotResult[] = [
+      { ...heroResult, previewImage: watermarked, isPreview: true },
+    ];
 
-    setStatus(jobId, 'packaging');
     updateJob(jobId, {
       results,
       listingTitle: analysis.listingTitle,
       listingDescription: analysis.listingDescription,
     });
+    void persistImageResult(jobId, {
+      sequenceNumber: heroShot.sequenceNumber,
+      imageRole: heroShot.imageRole,
+      imageJob: heroShot.imageJob,
+      status: 'done',
+      isPreview: true,
+      watermarked: true,
+    });
 
-    const allSucceeded = results.every((r) => r.status === 'done');
-    const anySucceeded = results.some((r) => r.status === 'done');
+    setStatus(jobId, 'preview_ready');
+  } catch (err) {
+    setStatus(jobId, 'failed');
+    updateJob(jobId, { error: err instanceof Error ? err.message : 'Preview generation failed.' });
+  }
+}
 
-    if (allSucceeded) {
+/**
+ * Phase 2 -- paid. Generates every remaining shot in parallel and releases the clean hero.
+ * Refuses to run unless the campaign has been marked paid.
+ */
+export async function runFullCampaign(jobId: string): Promise<void> {
+  const job = getJob(jobId);
+  if (!job) return;
+
+  if (!job.paid) {
+    setStatus(jobId, 'failed');
+    updateJob(jobId, { error: 'Campaign is not paid for.' });
+    return;
+  }
+
+  const analysis = job.analysis;
+  if (!analysis?.readyForGeneration || !job.results?.length) {
+    setStatus(jobId, 'failed');
+    updateJob(jobId, { error: 'No approved preview to build on.' });
+    return;
+  }
+
+  const client = openAiClient(jobId);
+  if (!client) return;
+
+  try {
+    const heroResult = job.results[0];
+    const heroShot = analysis.shots[0];
+    const heroReference = heroResult.image
+      ? dataUrlToSourcePhoto(heroResult.image, 'approved_hero.png')
+      : null;
+    const heroOrientation = heroReference ? heroShot.orientation : null;
+
+    setStatus(jobId, 'generating');
+    const remaining = await Promise.all(
+      analysis.shots
+        .slice(1)
+        .map((shot) => generateOneShot(client, shot, job.sources, heroReference, heroOrientation)),
+    );
+
+    for (const r of remaining) {
+      void persistImageResult(jobId, {
+        sequenceNumber: r.sequenceNumber,
+        imageRole: r.imageRole,
+        imageJob: r.imageJob,
+        status: r.status,
+        error: r.error,
+      });
+    }
+
+    // The hero is no longer a preview -- payment releases the unwatermarked file.
+    const releasedHero: GeneratedShotResult = {
+      ...heroResult,
+      previewImage: undefined,
+      isPreview: false,
+    };
+    const results = [releasedHero, ...remaining].sort(
+      (a, b) => a.sequenceNumber - b.sequenceNumber,
+    );
+
+    setStatus(jobId, 'packaging');
+    updateJob(jobId, { results });
+
+    const done = results.filter((r) => r.status === 'done').length;
+    if (done === results.length) {
       setStatus(jobId, 'completed');
-    } else if (anySucceeded) {
-      setStatus(
-        jobId,
-        'incomplete',
-        `${results.filter((r) => r.status === 'done').length} of ${results.length} images generated successfully.`,
-      );
+    } else if (done > 0) {
+      setStatus(jobId, 'incomplete', `${done} of ${results.length} images generated successfully.`);
     } else {
       setStatus(jobId, 'failed');
       updateJob(jobId, { error: 'All image generation attempts failed.' });

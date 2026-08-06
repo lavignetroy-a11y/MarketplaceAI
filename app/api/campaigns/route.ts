@@ -1,12 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createJob } from '@/lib/campaign/store';
-import { runCampaign } from '@/lib/campaign/pipeline';
-import type { RequestedImageCount, SourcePhoto } from '@/lib/campaign/types';
+import { runPreview } from '@/lib/campaign/pipeline';
+import { MAX_IMAGES, MAX_SOURCE_PHOTOS, MIN_IMAGES } from '@/lib/config/pricing';
+import type { SourcePhoto } from '@/lib/campaign/types';
 
 export const runtime = 'nodejs';
-
-const VALID_COUNTS: RequestedImageCount[] = [4, 6, 8, 10];
-const MAX_SOURCE_PHOTOS = 30;
 
 export async function POST(req: NextRequest) {
   if (!process.env.OPENAI_API_KEY) {
@@ -23,42 +21,49 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Invalid form submission.' }, { status: 400 });
   }
 
-  const photoEntries = formData.getAll('photos').filter((v): v is File => v instanceof File && v.size > 0);
+  const photoEntries = formData
+    .getAll('photos')
+    .filter((v): v is File => v instanceof File && v.size > 0);
+
   if (photoEntries.length === 0) {
     return NextResponse.json({ error: 'Please upload at least one photo.' }, { status: 400 });
   }
   if (photoEntries.length > MAX_SOURCE_PHOTOS) {
     return NextResponse.json(
-      { error: `Please upload at most ${MAX_SOURCE_PHOTOS} photos.` },
+      { error: `Please upload at most ${MAX_SOURCE_PHOTOS} photos of one item.` },
       { status: 400 },
     );
   }
 
   const countRaw = Number(formData.get('count'));
-  if (!VALID_COUNTS.includes(countRaw as RequestedImageCount)) {
-    return NextResponse.json({ error: 'count must be 4, 6, 8, or 10.' }, { status: 400 });
+  if (!Number.isInteger(countRaw) || countRaw < MIN_IMAGES || countRaw > MAX_IMAGES) {
+    return NextResponse.json(
+      { error: `Image count must be a whole number between ${MIN_IMAGES} and ${MAX_IMAGES}.` },
+      { status: 400 },
+    );
   }
-  const requestedCount = countRaw as RequestedImageCount;
 
   const sellerNotesRaw = formData.get('notes');
   const sellerNotes = typeof sellerNotesRaw === 'string' ? sellerNotesRaw : '';
 
+  const userIdRaw = formData.get('userId');
+  const userId = typeof userIdRaw === 'string' && userIdRaw ? userIdRaw : null;
+
   const sources: SourcePhoto[] = [];
   for (const file of photoEntries) {
-    const buffer = Buffer.from(await file.arrayBuffer());
     sources.push({
       fileName: file.name,
       mimeType: file.type || 'image/jpeg',
-      data: buffer,
+      data: Buffer.from(await file.arrayBuffer()),
     });
   }
 
-  const job = createJob(requestedCount, sellerNotes, sources);
+  const job = createJob(countRaw, sellerNotes, sources, userId);
 
-  // Fire-and-forget: the pipeline runs after this response is sent. This relies on the Node
-  // process staying alive (fine for `next dev` / `next start`), and won't work unmodified on a
-  // serverless platform where the function exits once the response is returned.
-  void runCampaign(job.id);
+  // Fire-and-forget: phase 1 (analysis + free watermarked preview) runs after this response.
+  // Relies on the Node process staying alive -- fine for `next dev` / `next start`, and would
+  // need a queue (the master prompt names Inngest) on a serverless deployment.
+  void runPreview(job.id);
 
-  return NextResponse.json({ jobId: job.id });
+  return NextResponse.json({ jobId: job.id, priceCents: job.priceCents });
 }

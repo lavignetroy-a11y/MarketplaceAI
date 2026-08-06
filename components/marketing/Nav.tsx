@@ -4,16 +4,18 @@ import Link from 'next/link';
 import { useState } from 'react';
 import { Menu, Upload, X } from 'lucide-react';
 import { Logo } from './Logo';
+import { useAuth } from '@/components/auth/AuthProvider';
 
 const LINKS = [
   { label: 'How it works', href: '#how-it-works' },
   { label: 'Examples', href: '#examples' },
   { label: 'Pricing', href: '#pricing' },
-  { label: 'Why it works', href: '#why-it-works' },
+  { label: 'Why it works', href: '#why' },
 ];
 
 export function Nav() {
   const [mobileOpen, setMobileOpen] = useState(false);
+  const { user } = useAuth();
 
   return (
     <header className="sticky top-4 z-50 px-4">
@@ -36,10 +38,10 @@ export function Nav() {
 
         <div className="hidden items-center gap-5 md:flex">
           <Link
-            href="/upload"
+            href={user ? '/account' : '/signin'}
             className="text-[0.875rem] font-medium tracking-[-0.01em] text-marketplace-muted transition-colors hover:text-marketplace-ink"
           >
-            Sign in
+            {user ? 'Your sets' : 'Sign in'}
           </Link>
           <Link
             href="/upload"
@@ -78,6 +80,13 @@ export function Nav() {
               {link.label}
             </a>
           ))}
+          <Link
+            href={user ? '/account' : '/signin'}
+            onClick={() => setMobileOpen(false)}
+            className="rounded-brand-sm px-3 py-3 text-[0.9375rem] font-medium text-marketplace-ink"
+          >
+            {user ? 'Your sets' : 'Sign in'}
+          </Link>
           <Link
             href="/upload"
             className="mt-2 inline-flex min-h-[48px] items-center justify-center gap-2 rounded-full bg-marketplace-ink px-5 text-[0.9375rem] font-semibold text-white"

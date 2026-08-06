@@ -26,6 +26,8 @@ type FanCard = {
   /** where the crop lands. These slots are much taller than the source photos, so a plain
    *  centre crop can slice past the subject; each value is aimed at its photo's chair. */
   objectPosition?: string;
+  /** BEFORE / AFTER marker sitting on the image itself, naming the transformation directly. */
+  chip?: { label: string; tone: 'dark' | 'accent' };
 };
 
 // Reads left-to-right as the product story: one ordinary source photo, the finished hero
@@ -35,11 +37,12 @@ const DESKTOP_CARDS: FanCard[] = [
     src: '/images/hero/original.webp',
     objectPosition: '62% 50%',
     alt: 'An ordinary, unedited seller photo of the item',
+    chip: { label: 'BEFORE', tone: 'dark' },
     left: 0,
     top: 142,
     width: 172,
     height: 328,
-    rotateY: 13,
+    rotateY: -16,
     z: 10,
     frame: 'thin',
     muted: true,
@@ -48,6 +51,7 @@ const DESKTOP_CARDS: FanCard[] = [
     src: '/images/hero/main.webp',
     objectPosition: '47% 50%',
     alt: 'The item, professionally presented in a clean, well-lit setting',
+    chip: { label: 'AFTER', tone: 'accent' },
     left: 149,
     top: 84,
     width: 303,
@@ -64,7 +68,7 @@ const DESKTOP_CARDS: FanCard[] = [
     top: 129,
     width: 138,
     height: 335,
-    rotateY: -25,
+    rotateY: 20,
     z: 40,
     frame: 'thin',
   },
@@ -76,7 +80,7 @@ const DESKTOP_CARDS: FanCard[] = [
     top: 149,
     width: 131,
     height: 305,
-    rotateY: -28,
+    rotateY: 24,
     z: 30,
     frame: 'thin',
   },
@@ -88,7 +92,7 @@ const DESKTOP_CARDS: FanCard[] = [
     top: 170,
     width: 124,
     height: 278,
-    rotateY: -30,
+    rotateY: 27,
     z: 20,
     frame: 'thin',
   },
@@ -100,7 +104,7 @@ const DESKTOP_CARDS: FanCard[] = [
     top: 188,
     width: 118,
     height: 253,
-    rotateY: -32,
+    rotateY: 29,
     z: 10,
     frame: 'thin',
   },
@@ -111,11 +115,12 @@ const MOBILE_CARDS: FanCard[] = [
     src: '/images/hero/original.webp',
     objectPosition: '62% 50%',
     alt: 'An ordinary, unedited seller photo of the item',
+    chip: { label: 'BEFORE', tone: 'dark' },
     left: 0,
     top: 78,
     width: 94,
     height: 176,
-    rotateY: 13,
+    rotateY: -16,
     z: 10,
     frame: 'thin',
     muted: true,
@@ -124,6 +129,7 @@ const MOBILE_CARDS: FanCard[] = [
     src: '/images/hero/main.webp',
     objectPosition: '47% 50%',
     alt: 'The item, professionally presented in a clean, well-lit setting',
+    chip: { label: 'AFTER', tone: 'accent' },
     left: 76,
     top: 46,
     width: 158,
@@ -140,7 +146,7 @@ const MOBILE_CARDS: FanCard[] = [
     top: 72,
     width: 80,
     height: 180,
-    rotateY: -26,
+    rotateY: 22,
     z: 30,
     frame: 'thin',
   },
@@ -223,6 +229,17 @@ function Card({ card, stage, compact }: { card: FanCard; stage: Stage; compact?:
         />
         <div className="relative" style={{ ...frameStyle, boxShadow: [...bevel, ...cast].join(', ') }}>
           {image(false)}
+          {card.chip && (
+            <span
+              className={`absolute left-1/2 top-0 z-10 -translate-x-1/2 translate-y-[10px] whitespace-nowrap rounded-full px-2.5 py-1 text-[0.6rem] font-[650] uppercase tracking-[0.12em] shadow-soft ${
+                card.chip.tone === 'accent'
+                  ? 'bg-violet-blue text-white'
+                  : 'bg-marketplace-ink/85 text-white backdrop-blur-sm'
+              }`}
+            >
+              {card.chip.label}
+            </span>
+          )}
         </div>
       </div>
 
@@ -383,7 +400,7 @@ export function HeroVisual() {
           Your original photos
         </Callout>
         <Callout left={DESKTOP_STAGE.w / 2} top={28} tail={20} center stage={DESKTOP_STAGE}>
-          Cleaner first impression
+          AI-enhanced results
         </Callout>
         <Callout left={578} top={70} tail={43} stage={DESKTOP_STAGE}>
           More buyer confidence
@@ -402,7 +419,7 @@ export function HeroVisual() {
         ))}
 
         <Callout left={MOBILE_STAGE.w / 2} top={2} tail={10} center stage={MOBILE_STAGE}>
-          Cleaner first impression
+          AI-enhanced results
         </Callout>
       </StageBox>
     </>

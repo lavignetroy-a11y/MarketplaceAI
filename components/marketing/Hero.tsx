@@ -3,9 +3,11 @@
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useRef, useState } from 'react';
-import { ArrowRight, Lock, Plus, ShieldCheck, Upload } from 'lucide-react';
+import { ArrowRight, Lock, Plus, ShieldCheck, Sparkles, Upload } from 'lucide-react';
 import { HeroVisual } from './HeroVisual';
 import { SupportStrip } from './SupportStrip';
+import { HERO_STATS, TRUST_BADGE } from '@/lib/config/claims';
+import { MAX_SOURCE_PHOTOS } from '@/lib/config/pricing';
 
 export function Hero() {
   const router = useRouter();
@@ -19,19 +21,46 @@ export function Hero() {
   return (
     <section className="section-compact relative overflow-hidden">
       <div className="page-shell mx-auto grid max-w-page items-center gap-14 px-1 lg:grid-cols-[minmax(0,0.78fr)_minmax(0,1.22fr)] lg:gap-4">
-        <div className="max-w-[520px]">
-          <h1 className="text-[clamp(2.6rem,4.6vw,4.25rem)] font-[650] leading-[0.98] tracking-[-0.058em] text-marketplace-ink">
+        <div className="max-w-[540px]">
+          <span className="inline-flex items-center gap-2 rounded-full border border-marketplace-line/70 bg-white/80 px-3.5 py-1.5 text-[0.7rem] font-[650] uppercase tracking-[0.14em] text-marketplace-violet shadow-soft backdrop-blur">
+            <Sparkles className="h-3.5 w-3.5" aria-hidden="true" />
+            {TRUST_BADGE}
+          </span>
+
+          <h1 className="mt-6 text-[clamp(2.6rem,5.3vw,4.25rem)] font-[650] leading-[0.98] tracking-[-0.058em] text-marketplace-ink">
             Make your listing
             <br />
             <span className="bg-violet-blue bg-clip-text text-transparent">worth clicking.</span>
           </h1>
 
-          <p className="mt-7 max-w-[430px] text-[1.0625rem] leading-[1.62] tracking-[-0.014em] text-marketplace-muted">
-            Turn the photos you already have into polished marketplace images that attract more
-            buyers, build confidence, and help your item stand out.
+          <p className="mt-6 max-w-[440px] text-[1.0625rem] leading-[1.62] tracking-[-0.014em] text-marketplace-muted">
+            Better photos get more attention, build trust, and help your item{' '}
+            <span className="font-medium text-marketplace-violet">sell for what it's worth</span> —
+            faster.
           </p>
 
-          <div className="mt-8 flex flex-wrap items-center gap-3">
+          <dl className="mt-7 flex max-w-[470px] items-stretch gap-0 rounded-brand border border-marketplace-line/60 bg-white/70 py-4 shadow-soft backdrop-blur">
+            {HERO_STATS.map((stat, i) => (
+              <div
+                key={stat.label}
+                className={`flex-1 px-4 text-center ${
+                  i > 0 ? 'border-l border-marketplace-line/70' : ''
+                }`}
+              >
+                <dt className="text-[0.6875rem] leading-tight text-marketplace-muted-light">
+                  {stat.label}
+                </dt>
+                <dd className="mt-1 text-[1.0625rem] font-[650] tracking-[-0.03em] text-marketplace-violet">
+                  {stat.value}
+                </dd>
+                <dd className="text-[0.625rem] leading-tight text-marketplace-muted-light">
+                  {stat.note}
+                </dd>
+              </div>
+            ))}
+          </dl>
+
+          <div className="mt-7 flex flex-wrap items-center gap-3">
             <Link
               href="/upload"
               className="inline-flex min-h-[48px] items-center gap-2 rounded-[14px] border border-marketplace-ink bg-marketplace-ink px-[22px] text-[0.9375rem] font-semibold tracking-[-0.012em] text-white transition-transform hover:-translate-y-px hover:bg-marketplace-charcoal"
@@ -49,7 +78,10 @@ export function Hero() {
           </div>
 
           <p className="mt-5 flex items-center gap-2 text-[0.8125rem] text-marketplace-muted">
-            <ShieldCheck className="h-4 w-4 shrink-0 text-marketplace-muted-light" aria-hidden="true" />
+            <ShieldCheck
+              className="h-4 w-4 shrink-0 text-marketplace-muted-light"
+              aria-hidden="true"
+            />
             No editing experience needed. Works with photos from your phone.
           </p>
 
@@ -70,7 +102,7 @@ export function Hero() {
             }}
             // Outer surface: a plain light card. The dashed drop target is nested inside it,
             // sitting on a slightly cooler grey so the droppable area reads as its own region.
-            className="mt-8 max-w-[470px] cursor-pointer rounded-brand-lg border border-marketplace-line/60 bg-white/70 p-2 text-left shadow-[0_10px_30px_rgba(12,13,18,0.05)] transition-colors"
+            className="mt-7 max-w-[470px] cursor-pointer rounded-brand-lg border border-marketplace-line/60 bg-white/70 p-2 text-left shadow-[0_10px_30px_rgba(12,13,18,0.05)] transition-colors"
           >
             <input
               ref={fileInputRef}
@@ -99,7 +131,7 @@ export function Hero() {
                 </p>
                 <p className="mt-1.5 flex items-center gap-1.5 text-[0.8125rem] text-marketplace-muted">
                   <Lock className="h-3.5 w-3.5" aria-hidden="true" />
-                  Your photos stay private.
+                  Up to {MAX_SOURCE_PHOTOS} photos of one item. Your photos stay private.
                 </p>
               </div>
             </div>
@@ -115,12 +147,18 @@ export function Hero() {
 
       <div className="mt-8 flex justify-center">
         <a
-          href="#marketplace-feed"
+          href="#why"
           className="flex flex-col items-center gap-1 text-[0.8125rem] font-medium text-marketplace-muted transition-colors hover:text-marketplace-ink"
         >
           See how it works
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-            <path d="M6 9l6 6 6-6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+            <path
+              d="M6 9l6 6 6-6"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
           </svg>
         </a>
       </div>

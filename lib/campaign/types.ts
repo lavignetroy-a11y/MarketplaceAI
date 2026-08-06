@@ -1,4 +1,5 @@
-export type RequestedImageCount = 4 | 6 | 8 | 10;
+/** Any count within the pricing counter's range -- see lib/config/pricing.ts. */
+export type RequestedImageCount = number;
 
 export type ShotClassification = 'marketing' | 'evidence';
 
@@ -71,7 +72,9 @@ export type CampaignStatus =
   | 'queued'
   | 'analyzing'
   | 'needs_more_evidence'
-  | 'generating_hero'
+  | 'generating_preview'
+  // the free watermarked preview is ready and the campaign is waiting on payment
+  | 'preview_ready'
   | 'generating'
   | 'packaging'
   | 'completed'
@@ -83,7 +86,11 @@ export interface GeneratedShotResult {
   imageRole: string;
   imageJob: string;
   status: 'done' | 'error';
+  /** Data URL of the deliverable image. Withheld from the client until paid, except previews. */
   image?: string;
+  /** Free, watermarked version of the hero, shown before payment. */
+  previewImage?: string;
+  isPreview?: boolean;
   error?: string;
 }
 
@@ -108,13 +115,19 @@ export interface CampaignJob {
   listingDescription?: string;
   minimumAdditionalEvidenceNeeded?: string[];
   error?: string;
+  /** Payment gate. Only the watermarked preview is released while this is false. */
+  paid: boolean;
+  priceCents: number;
+  /** Set once the campaign is attributed to a signed-in account. */
+  userId?: string | null;
 }
 
 export const CUSTOMER_STATUS_LABELS: Record<CampaignStatus, string> = {
   queued: 'Preparing your campaign',
   analyzing: 'Understanding the product and diagnosing photo improvements',
   needs_more_evidence: 'One detail is needed',
-  generating_hero: 'Creating the main listing image',
+  generating_preview: 'Creating your free preview image',
+  preview_ready: 'Your preview is ready',
   generating: 'Creating the remaining images',
   packaging: 'Preparing your download',
   completed: 'Your listing package is ready',

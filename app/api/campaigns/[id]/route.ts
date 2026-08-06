@@ -12,12 +12,26 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
     return NextResponse.json({ error: 'Campaign not found.' }, { status: 404 });
   }
 
+  // The payment gate lives here, not in the UI: unpaid campaigns only ever receive the
+  // watermarked preview, so the clean file can't be pulled straight from the API response.
+  const results = (job.results ?? []).map((r) => ({
+    sequenceNumber: r.sequenceNumber,
+    imageRole: r.imageRole,
+    imageJob: r.imageJob,
+    status: r.status,
+    error: r.error,
+    isPreview: Boolean(r.isPreview),
+    image: job.paid ? r.image : r.previewImage,
+  }));
+
   return NextResponse.json({
     id: job.id,
     status: job.status,
     statusLabel: CUSTOMER_STATUS_LABELS[job.status],
     statusMessage: job.statusMessage,
     requestedCount: job.requestedCount,
+    paid: job.paid,
+    priceCents: job.priceCents,
     productSummary: job.analysis
       ? {
           category: job.analysis.productIdentity.category,
@@ -27,9 +41,10 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
         }
       : null,
     minimumAdditionalEvidenceNeeded: job.minimumAdditionalEvidenceNeeded ?? [],
-    results: job.results ?? [],
-    listingTitle: job.listingTitle ?? null,
-    listingDescription: job.listingDescription ?? null,
+    results,
+    // listing copy is part of the paid deliverable
+    listingTitle: job.paid ? job.listingTitle ?? null : null,
+    listingDescription: job.paid ? job.listingDescription ?? null : null,
     error: job.error ?? null,
   });
 }
