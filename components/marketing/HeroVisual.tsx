@@ -20,13 +20,17 @@ type FanCard = {
   frame: 'thick' | 'thin';
   /** the unedited "before" photo reads slightly flatter than the finished campaign images */
   muted?: boolean;
+  /** where the crop lands. These slots are much taller than the source photos, so a plain
+   *  centre crop can slice past the subject; each value is aimed at its photo's chair. */
+  objectPosition?: string;
 };
 
 // Reads left-to-right as the product story: one ordinary source photo, the finished hero
 // largest and frontmost, then the rest of the campaign cascading away behind it.
 const DESKTOP_CARDS: FanCard[] = [
   {
-    src: '/images/hero/original.jpg',
+    src: '/images/hero/original.webp',
+    objectPosition: '62% 50%',
     alt: 'An ordinary, unedited seller photo of the item',
     left: 0,
     top: 122,
@@ -38,7 +42,8 @@ const DESKTOP_CARDS: FanCard[] = [
     muted: true,
   },
   {
-    src: '/images/hero/main.jpg',
+    src: '/images/hero/main.webp',
+    objectPosition: '47% 50%',
     alt: 'The item, professionally presented in a clean, well-lit setting',
     left: 128,
     top: 78,
@@ -49,7 +54,8 @@ const DESKTOP_CARDS: FanCard[] = [
     frame: 'thick',
   },
   {
-    src: '/images/hero/alt-1.jpg',
+    src: '/images/hero/alt-1.webp',
+    objectPosition: '40% 50%',
     alt: 'An alternate angle from the finished listing campaign',
     left: 366,
     top: 118,
@@ -60,7 +66,8 @@ const DESKTOP_CARDS: FanCard[] = [
     frame: 'thin',
   },
   {
-    src: '/images/hero/alt-2.jpg',
+    src: '/images/hero/alt-2.webp',
+    objectPosition: '42% 50%',
     alt: 'A texture detail from the finished listing campaign',
     left: 448,
     top: 138,
@@ -71,7 +78,8 @@ const DESKTOP_CARDS: FanCard[] = [
     frame: 'thin',
   },
   {
-    src: '/images/hero/alt-3.jpg',
+    src: '/images/hero/alt-3.webp',
+    objectPosition: '50% 50%',
     alt: 'A further view from the finished listing campaign',
     left: 524,
     top: 158,
@@ -85,7 +93,8 @@ const DESKTOP_CARDS: FanCard[] = [
 
 const MOBILE_CARDS: FanCard[] = [
   {
-    src: '/images/hero/original.jpg',
+    src: '/images/hero/original.webp',
+    objectPosition: '62% 50%',
     alt: 'An ordinary, unedited seller photo of the item',
     left: 0,
     top: 78,
@@ -97,7 +106,8 @@ const MOBILE_CARDS: FanCard[] = [
     muted: true,
   },
   {
-    src: '/images/hero/main.jpg',
+    src: '/images/hero/main.webp',
+    objectPosition: '47% 50%',
     alt: 'The item, professionally presented in a clean, well-lit setting',
     left: 76,
     top: 46,
@@ -108,7 +118,8 @@ const MOBILE_CARDS: FanCard[] = [
     frame: 'thick',
   },
   {
-    src: '/images/hero/alt-1.jpg',
+    src: '/images/hero/alt-1.webp',
+    objectPosition: '40% 50%',
     alt: 'An alternate angle from the finished listing campaign',
     left: 228,
     top: 72,
@@ -149,6 +160,7 @@ function Card({ card, compact }: { card: FanCard; compact?: boolean }) {
           src={card.src}
           alt={card.alt}
           className={`h-full w-full ${frame.inner} ${card.muted ? 'saturate-[0.85]' : ''}`}
+          objectPosition={card.objectPosition}
         />
       </div>
 
@@ -164,7 +176,13 @@ function Card({ card, compact }: { card: FanCard; compact?: boolean }) {
         }}
       >
         <div className={`overflow-hidden ${frame.inner}`} style={{ ...box, transform: 'scaleY(-1)' }}>
-          <PlaceholderImage src={card.src} alt="" decorative className={`h-full w-full ${frame.inner}`} />
+          <PlaceholderImage
+            src={card.src}
+            alt=""
+            decorative
+            className={`h-full w-full ${frame.inner}`}
+            objectPosition={card.objectPosition}
+          />
         </div>
       </div>
     </div>

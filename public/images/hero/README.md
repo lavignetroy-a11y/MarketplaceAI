@@ -1,15 +1,27 @@
 # Hero section images
 
-These files don't exist yet on purpose -- the hero renders a quiet placeholder ("Image coming
-soon") until a matching file is dropped in. No code changes are needed later; just add files
-with these exact names:
+The hero renders a quiet placeholder ("Image coming soon") for any file that's missing, so the
+page never shows a broken-image icon.
 
-- `original.jpg` -- an ordinary, unedited seller photo (the "before"). Portrait, ~1:2.
-- `main.jpg` -- the large, centered polished hero image (the "after"). Portrait, ~3:4.
-- `alt-1.jpg` -- an alternate angle from the campaign. Tall portrait, ~2:5.
-- `alt-2.jpg` -- a texture/detail shot. Tall portrait, ~2:5. Desktop only.
-- `alt-3.jpg` -- a further campaign view. Tall portrait, ~2:5. Desktop only.
+Current files:
 
-All of them should depict the same item, matching the campaign story the hero visual tells.
-Each card is rendered with `object-cover`, so exact dimensions don't need to match the ratios
-above -- they'll be cropped to fit -- but staying close avoids awkward crops.
+- `original.webp` -- an ordinary, unedited seller photo (the "before").
+- `main.webp` -- the large, centered polished hero image (the "after").
+- `alt-1.webp` -- a texture/detail shot from the campaign.
+- `alt-2.webp` -- an alternate angle (side profile).
+- `alt-3.webp` -- a further angle (rear view).
+
+## If you replace these
+
+**Shape matters more than resolution.** The three supporting cards are tall and narrow
+(roughly 2:5), so a square or landscape photo gets cropped to a narrow vertical slice of
+itself. That works when the photo is already a detail shot or a tight profile; it looks like a
+mistake when it's a wide shot of the whole item. Prefer portrait crops for `alt-1/2/3`.
+
+Where the crop lands is tuned per image via `objectPosition` in `HeroVisual.tsx` -- if you swap
+a photo and the subject drifts out of frame, adjust that value rather than re-cropping the file.
+
+**Keep them small.** These are the first thing a visitor loads. The current set is ~150KB total.
+Source photos straight from a phone or an image generator are frequently 800KB+ each; run them
+through a resize + WebP conversion (e.g. `sharp`) before committing. ~760px on the long edge is
+plenty -- the largest card only displays at ~250px wide, so that still covers retina.

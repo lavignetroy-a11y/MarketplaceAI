@@ -11,12 +11,16 @@ export function PlaceholderImage({
   alt,
   className = '',
   decorative = false,
+  objectPosition,
 }: {
   src: string;
   alt: string;
   className?: string;
   /** Suppresses the placeholder caption -- used for mirror reflections, where mirrored text reads as a glitch. */
   decorative?: boolean;
+  /** CSS object-position. The hero's card slots are far taller than the source photos, so the
+   *  default centre crop can miss the subject; this aims the crop at it. */
+  objectPosition?: string;
 }) {
   const [failed, setFailed] = useState(false);
   const imgRef = useRef<HTMLImageElement>(null);
@@ -52,6 +56,7 @@ export function PlaceholderImage({
       src={src}
       alt={alt}
       className={`object-cover ${className}`}
+      style={objectPosition ? { objectPosition } : undefined}
       onError={() => setFailed(true)}
     />
   );
