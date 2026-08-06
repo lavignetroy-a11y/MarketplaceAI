@@ -91,7 +91,7 @@ const DESKTOP_CARDS: FanCard[] = [
   },
   {
     src: '/images/hero/alt-4.webp',
-    objectPosition: '50% 50%',
+    objectPosition: '52% 50%',
     alt: 'A further view from the finished listing campaign',
     left: 696,
     top: 188,
