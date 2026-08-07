@@ -4,6 +4,8 @@ import { useState } from 'react';
 import { ArrowRight, Eye, Grid2x2, LayoutGrid, ShieldCheck, Sparkles, Star } from 'lucide-react';
 import { Accent, Eyebrow, IconChip, Lede, PhotoCard, SectionTitle, gradientStroke } from './primitives';
 import { ITEM_CATEGORIES, type CategoryKey } from '@/lib/config/categories';
+import { VariantSwitcher, useVariant } from './VariantSwitcher';
+import { shotLabels } from '@/lib/config/shotLabels';
 
 // Tabs come from the shared category list because these keys are also the folder names the
 // images are generated into -- a local copy here drifts and the tiles silently go blank.
@@ -12,14 +14,10 @@ const CATEGORIES = ITEM_CATEGORIES;
 // Shot roles are constant across categories; only the folder changes. Image paths are derived
 // from the active tab so switching categories actually swaps the set rather than just
 // restyling the button.
-const SHOTS = [
-  { key: 'hero', label: 'Hero image', area: 'hero' },
-  { key: 'alt', label: 'Alternate angle', area: 'alt' },
-  { key: 'texture', label: 'Texture detail', area: 'texture' },
-  { key: 'rear', label: 'Rear angle', area: 'rear' },
-  { key: 'condition', label: 'Condition view', area: 'condition' },
-  { key: 'context', label: 'Context shot', area: 'context' },
-];
+// Only the grid geometry is fixed. What each tile SHOWS depends on the item on display, so the
+// labels come from that item's shot vocabulary -- a washer's slot 2 is its open door, not a
+// "rear angle" it could never be photographed from.
+const SHOT_AREAS = ['hero', 'alt', 'texture', 'rear', 'condition', 'context'];
 
 /**
  * The differentiator section: one upload becomes an entire coordinated set, not one edited
@@ -28,11 +26,14 @@ const SHOTS = [
  */
 export function CampaignReveal() {
   const [category, setCategory] = useState<CategoryKey>('furniture');
+  const { variant, step } = useVariant();
+  const labels = shotLabels(category, variant);
 
   return (
     <section id="campaign" className="section relative overflow-hidden">
       <div className="page-shell mx-auto max-w-page">
-        <div className="mb-10 flex justify-end">
+        <div className="mb-10 flex flex-wrap items-center justify-end gap-4">
+          <VariantSwitcher variant={variant} step={step} label="item" />
           <div
             role="tablist"
             aria-label="Item category"
@@ -80,7 +81,7 @@ export function CampaignReveal() {
                   {[1, 2, 3, 4].map((n) => (
                     <PhotoCard
                       key={n}
-                      src={`/images/reveal/${category}/source-${n}.webp`}
+                      src={`/images/reveal/${category}/v${variant}/before-${n}.webp`}
                       alt=""
                       className="aspect-[3/4] flex-1 saturate-[0.85]"
                       radius={10}
@@ -109,16 +110,16 @@ export function CampaignReveal() {
               `,
             }}
           >
-            {SHOTS.map((shot) => (
+            {SHOT_AREAS.map((area, si) => (
               <PhotoCard
-                key={shot.key}
-                src={`/images/reveal/${category}/${shot.key}.webp`}
-                alt={shot.label}
-                className={shot.area === 'hero' ? 'min-h-[280px]' : 'min-h-[135px]'}
+                key={area}
+                src={`/images/reveal/${category}/v${variant}/slot-${si + 1}.webp`}
+                alt={labels[si]}
+                className={area === 'hero' ? 'min-h-[280px]' : 'min-h-[135px]'}
                 label={{
-                  text: shot.label,
+                  text: labels[si],
                   icon:
-                    shot.area === 'hero' ? (
+                    area === 'hero' ? (
                       <Star className="h-3.5 w-3.5" {...gradientStroke} strokeWidth={2} />
                     ) : (
                       <Grid2x2 className="h-3.5 w-3.5" {...gradientStroke} strokeWidth={2} />
@@ -126,7 +127,7 @@ export function CampaignReveal() {
                 }}
                 radius={16}
                 pad={5}
-                gridArea={shot.area}
+                gridArea={area}
               />
             ))}
           </div>

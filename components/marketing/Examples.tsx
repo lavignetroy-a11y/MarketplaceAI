@@ -10,6 +10,7 @@ import {
   EXAMPLE_SOURCE_COUNT,
   type CategoryKey,
 } from '@/lib/config/categories';
+import { VariantSwitcher, useVariant } from './VariantSwitcher';
 
 // Same shared list the reveal section and the image generator use -- these keys are the
 // filename prefixes under public/images/examples/, so a local copy drifts into blank tiles.
@@ -40,6 +41,7 @@ const BENEFITS = [
  */
 export function Examples() {
   const [active, setActive] = useState<CategoryKey>('furniture');
+  const { variant, step } = useVariant();
   const current = CATEGORIES.find((c) => c.key === active) ?? CATEGORIES[0];
 
   return (
@@ -87,7 +89,11 @@ export function Examples() {
           </div>
         </div>
 
-        <div className="mt-10 rounded-brand-xl border border-white/10 bg-white/[0.03] p-6 backdrop-blur">
+        <div className="mt-6 flex justify-center">
+          <VariantSwitcher variant={variant} step={step} dark label="item" />
+        </div>
+
+        <div className="mt-6 rounded-brand-xl border border-white/10 bg-white/[0.03] p-6 backdrop-blur">
           <div className="grid gap-8 lg:grid-cols-[minmax(0,0.55fr)_auto_minmax(0,1.45fr)] lg:items-center">
             <div>
               <p className="text-[0.9375rem] font-medium text-white/80">Original seller photos</p>
@@ -95,7 +101,7 @@ export function Examples() {
                 {[1, 2, 3, 4].map((n) => (
                   <PhotoCard
                     key={n}
-                    src={`/images/examples/${active}-source-${n}.webp`}
+                    src={`/images/examples/${active}/v${variant}/source-${n}.webp`}
                     alt=""
                     className="aspect-square saturate-[0.8]"
                     radius={12}
@@ -113,7 +119,7 @@ export function Examples() {
               <p className="text-[0.9375rem] font-medium text-white/80">Campaign result</p>
               <div className="mt-4 grid grid-cols-3 gap-3">
                 <PhotoCard
-                  src={`/images/examples/${active}-result-hero.webp`}
+                  src={`/images/examples/${active}/v${variant}/result-hero.webp`}
                   alt="The finished hero image"
                   className="col-span-2 row-span-2 min-h-[220px]"
                   radius={14}
@@ -122,7 +128,7 @@ export function Examples() {
                 {[1, 2, 3, 4].map((n) => (
                   <PhotoCard
                     key={n}
-                    src={`/images/examples/${active}-result-${n}.webp`}
+                    src={`/images/examples/${active}/v${variant}/result-${n}.webp`}
                     alt=""
                     className="aspect-square"
                     radius={12}

@@ -1,13 +1,16 @@
+'use client';
+
 import Link from 'next/link';
 import { ArrowRight, Lock, PencilOff, Smartphone, Sparkles, Upload } from 'lucide-react';
 import { Accent, PhotoCard, SectionTitle, gradientStroke } from './primitives';
+import { VariantSwitcher, useVariant } from './VariantSwitcher';
 
 const FAN = [
-  { src: '/images/cta/card-1.webp', label: 'Lifestyle shot', rotate: -14, y: 34, z: 10 },
-  { src: '/images/cta/card-2.webp', label: 'Detail close-up', rotate: -7, y: 14, z: 20 },
-  { src: '/images/cta/card-3.webp', label: 'Hero image', rotate: 0, y: 0, z: 30 },
-  { src: '/images/cta/card-4.webp', label: 'Room context', rotate: 7, y: 14, z: 20 },
-  { src: '/images/cta/card-5.webp', label: 'Alternate angle', rotate: 14, y: 34, z: 10 },
+  { slot: 1, label: 'Lifestyle shot', rotate: -14, y: 34, z: 10 },
+  { slot: 2, label: 'Detail close-up', rotate: -7, y: 14, z: 20 },
+  { slot: 3, label: 'Hero image', rotate: 0, y: 0, z: 30 },
+  { slot: 4, label: 'Room context', rotate: 7, y: 14, z: 20 },
+  { slot: 5, label: 'Alternate angle', rotate: 14, y: 34, z: 10 },
 ];
 
 /**
@@ -15,6 +18,7 @@ const FAN = [
  * of the upload surface is the whole product in one image, so the copy can stay short.
  */
 export function FinalCta() {
+  const { variant, step } = useVariant();
   return (
     <section className="section relative overflow-hidden bg-marketplace-midnight">
       <div
@@ -31,12 +35,16 @@ export function FinalCta() {
           designed to attract attention, build confidence, and help your item stand out.
         </p>
 
+        <div className="mt-8 flex justify-center">
+          <VariantSwitcher variant={variant} step={step} dark label="item" />
+        </div>
+
         {/* the finished set fanning above the upload surface */}
         <div className="relative mx-auto mt-16 h-[300px] w-full max-w-[860px] sm:h-[340px]">
           <div className="absolute inset-x-0 top-0 flex items-end justify-center">
             {FAN.map((card) => (
               <div
-                key={card.src}
+                key={card.slot}
                 className="relative -mx-3 sm:-mx-2"
                 style={{
                   transform: `rotate(${card.rotate}deg) translateY(${card.y}px)`,
@@ -44,7 +52,7 @@ export function FinalCta() {
                 }}
               >
                 <PhotoCard
-                  src={card.src}
+                  src={`/images/cta/v${variant}/card-${card.slot}.webp`}
                   alt={card.label}
                   className="h-[150px] w-[104px] sm:h-[210px] sm:w-[148px]"
                   radius={14}

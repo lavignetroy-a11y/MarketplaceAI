@@ -1,7 +1,10 @@
+'use client';
+
 import Link from 'next/link';
 import { Check, CloudUpload, Grid2x2, ShieldCheck, Star, Upload } from 'lucide-react';
 import { Accent, Eyebrow, Lede, PhotoCard, SectionTitle, gradientStroke } from './primitives';
 import { MAX_SOURCE_PHOTOS, coverageFor, formatPrice, priceCents } from '@/lib/config/pricing';
+import { VariantSwitcher, useVariant } from './VariantSwitcher';
 
 const STEPS = [
   {
@@ -27,6 +30,7 @@ const STEPS = [
  * which is the fastest way to answer "is this complicated?".
  */
 export function HowItWorks() {
+  const { variant, step } = useVariant();
   return (
     <section id="how-it-works" className="section relative overflow-hidden bg-marketplace-canvas/40">
       <div className="page-shell mx-auto max-w-page">
@@ -39,6 +43,11 @@ export function HowItWorks() {
             Upload the photos you already have, choose the coverage you want, and receive a
             polished listing set. No editing skills, no prompt writing.
           </Lede>
+
+
+        <div className="mt-7 flex justify-center">
+          <VariantSwitcher variant={variant} step={step} label="item" />
+        </div>
         </div>
 
         <ol className="mt-12 grid gap-8 lg:grid-cols-3 lg:gap-6">
@@ -58,9 +67,9 @@ export function HowItWorks() {
                 </div>
               </div>
               <div className="mt-6">
-                {i === 0 && <StepUpload />}
+                {i === 0 && <StepUpload variant={variant} />}
                 {i === 1 && <StepCoverage />}
-                {i === 2 && <StepResult />}
+                {i === 2 && <StepResult variant={variant} />}
               </div>
             </li>
           ))}
@@ -99,7 +108,7 @@ function Panel({ children }: { children: React.ReactNode }) {
   );
 }
 
-function StepUpload() {
+function StepUpload({ variant }: { variant: number }) {
   return (
     <Panel>
       <div className="rounded-[18px] border border-dashed border-marketplace-line bg-marketplace-canvas/55 px-5 py-8 text-center">
@@ -113,7 +122,7 @@ function StepUpload() {
         {[1, 2, 3, 4].map((n) => (
           <PhotoCard
             key={n}
-            src={`/images/how/source-${n}.webp`}
+            src={`/images/how/v${variant}/source-${n}.webp`}
             alt=""
             className="aspect-[3/4] flex-1 saturate-[0.85]"
             radius={10}
@@ -170,12 +179,12 @@ function StepCoverage() {
   );
 }
 
-function StepResult() {
+function StepResult({ variant }: { variant: number }) {
   return (
     <Panel>
       <div className="grid grid-cols-3 gap-2">
         <PhotoCard
-          src="/images/how/result-hero.webp"
+          src={`/images/how/v${variant}/result-hero.webp`}
           alt="The strongest first photo from the finished set"
           className="col-span-2 row-span-2 min-h-[176px]"
           label={{
@@ -188,7 +197,7 @@ function StepResult() {
         {[1, 2, 3, 4].map((n) => (
           <PhotoCard
             key={n}
-            src={`/images/how/result-${n}.webp`}
+            src={`/images/how/v${variant}/result-${n}.webp`}
             alt=""
             className="aspect-square"
             radius={10}

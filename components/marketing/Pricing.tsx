@@ -12,6 +12,7 @@ import {
   formatPrice,
   priceCents,
 } from '@/lib/config/pricing';
+import { VariantSwitcher, useVariant } from './VariantSwitcher';
 
 const INCLUDED = [
   'A coordinated set, not one edited photo',
@@ -27,6 +28,7 @@ const INCLUDED = [
  * shows coverage and price moving together makes the per-image model feel transparent instead.
  */
 export function Pricing() {
+  const { variant, step } = useVariant();
   const [count, setCount] = useState(DEFAULT_IMAGES);
   const coverage = coverageFor(count);
   const total = priceCents(count);
@@ -45,6 +47,11 @@ export function Pricing() {
             {formatPrice(priceCents(1))} per finished image. No subscription, no bundles you
             don&rsquo;t need — you pick the number and pay for exactly that.
           </Lede>
+
+
+        <div className="mt-7 flex justify-center">
+          <VariantSwitcher variant={variant} step={step} label="item" />
+        </div>
         </div>
 
         <div className="mt-12 grid items-stretch gap-6 lg:grid-cols-[minmax(0,1.05fr)_minmax(0,0.95fr)]">
@@ -164,7 +171,7 @@ export function Pricing() {
                 {Array.from({ length: MAX_IMAGES }).map((_, i) => (
                   <PhotoCard
                     key={i}
-                    src={`/images/pricing/tile-${(i % 5) + 1}.webp`}
+                    src={`/images/pricing/v${variant}/tile-${(i % 5) + 1}.webp`}
                     alt=""
                     className={`aspect-square transition-opacity duration-200 ${
                       i < count ? 'opacity-100' : 'opacity-[0.18]'

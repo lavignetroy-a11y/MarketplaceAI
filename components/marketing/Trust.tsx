@@ -1,5 +1,8 @@
+'use client';
+
 import { Ban, Eye, Lock, PencilOff, ShieldCheck, Sparkles, Sun, Crop, Layers } from 'lucide-react';
 import { Accent, Eyebrow, IconChip, Lede, PhotoCard, SectionTitle, gradientStroke } from './primitives';
+import { VariantSwitcher, useVariant } from './VariantSwitcher';
 
 const IMPROVES = [
   { icon: Sun, title: 'Cleaner lighting', body: 'Balanced light and colour for true clarity.' },
@@ -39,6 +42,7 @@ const GUARANTEES = [
  * and the magnified crops prove real texture and wear survive the process.
  */
 export function Trust() {
+  const { variant, step } = useVariant();
   return (
     <section id="trust" className="section relative overflow-hidden">
       <div className="page-shell mx-auto max-w-page">
@@ -56,6 +60,11 @@ export function Trust() {
               without inventing details or hiding real condition.
             </span>
           </Lede>
+
+
+        <div className="mt-7 flex justify-center">
+          <VariantSwitcher variant={variant} step={step} label="item" />
+        </div>
         </div>
 
         <div className="mt-14 grid gap-6 rounded-brand-xl border border-marketplace-line/60 bg-white/70 p-6 shadow-soft backdrop-blur lg:grid-cols-[minmax(0,0.62fr)_minmax(0,1.5fr)_minmax(0,0.78fr)]">
@@ -89,7 +98,7 @@ export function Trust() {
           {/* the item itself, annotated */}
           <div className="relative">
             <PhotoCard
-              src="/images/trust/inspect.webp"
+              src={`/images/trust/v${variant}/inspect.webp`}
               alt="The finished image with annotations showing what is preserved"
               className="min-h-[420px] w-full"
               radius={18}
@@ -109,8 +118,8 @@ export function Trust() {
           {/* magnified detail crops proving texture and wear survive */}
           <div className="flex flex-col gap-5">
             {[
-              { src: '/images/trust/detail-1.webp', caption: 'Natural texture and fabric visible' },
-              { src: '/images/trust/detail-2.webp', caption: 'Real wear, seams, and joins shown' },
+              { src: `/images/trust/v${variant}/detail-1.webp`, caption: 'Natural texture and fabric visible' },
+              { src: `/images/trust/v${variant}/detail-2.webp`, caption: 'Real wear, seams, and joins shown' },
             ].map(({ src, caption }) => (
               <figure key={src} className="relative">
                 <PhotoCard src={src} alt={caption} className="h-[170px] w-full" radius={14} pad={4} />

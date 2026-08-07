@@ -1,18 +1,21 @@
+'use client';
+
 import { Eye, Gem, Heart, Truck, Zap, BadgeCheck } from 'lucide-react';
 import { Accent, Eyebrow, IconChip, Lede, PhotoCard, SectionTitle, gradientStroke } from './primitives';
+import { VariantSwitcher, useVariant } from './VariantSwitcher';
 
 const LEFT = [
   {
     icon: Eye,
     title: 'More attention',
     body: 'Stronger visuals help stop the scroll.',
-    img: '/images/why/detail-1.webp',
+    imgSlot: 1,
   },
   {
     icon: Gem,
     title: 'Higher perceived value',
     body: 'Cleaner presentation makes the item feel cared for.',
-    img: '/images/why/detail-2.webp',
+    imgSlot: 2,
   },
 ];
 
@@ -21,13 +24,13 @@ const RIGHT = [
     icon: BadgeCheck,
     title: 'More buyer confidence',
     body: 'Clear angles and details show exactly what they are getting.',
-    img: '/images/why/detail-3.webp',
+    imgSlot: 3,
   },
   {
     icon: Zap,
     title: 'A smoother sale',
     body: 'Better coverage answers questions before they are asked.',
-    img: '/images/why/detail-4.webp',
+    imgSlot: 4,
   },
 ];
 
@@ -37,6 +40,7 @@ const RIGHT = [
  * about presentation could.
  */
 export function WhyItMatters() {
+  const { variant, step } = useVariant();
   return (
     <section id="why" className="section relative overflow-hidden bg-marketplace-canvas/40">
       <div className="page-shell mx-auto max-w-page">
@@ -50,20 +54,37 @@ export function WhyItMatters() {
             feel more trustworthy, and look more valuable — so you attract the right buyers with
             less back and forth.
           </Lede>
+
+
+        <div className="mt-7 flex justify-center">
+          <VariantSwitcher variant={variant} step={step} label="item" />
+        </div>
         </div>
 
         <div className="mt-14 grid items-center gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,0.95fr)_minmax(0,1fr)]">
           <div className="flex flex-col gap-5">
-            {LEFT.map(({ icon: Icon, title, body, img }) => (
-              <BenefitCard key={title} Icon={Icon} title={title} body={body} img={img} />
+            {LEFT.map(({ icon: Icon, title, body, imgSlot }) => (
+              <BenefitCard
+                key={title}
+                Icon={Icon}
+                title={title}
+                body={body}
+                img={`/images/why/v${variant}/detail-${imgSlot}.webp`}
+              />
             ))}
           </div>
 
-          <ListingCard />
+          <ListingCard variant={variant} />
 
           <div className="flex flex-col gap-5">
-            {RIGHT.map(({ icon: Icon, title, body, img }) => (
-              <BenefitCard key={title} Icon={Icon} title={title} body={body} img={img} />
+            {RIGHT.map(({ icon: Icon, title, body, imgSlot }) => (
+              <BenefitCard
+                key={title}
+                Icon={Icon}
+                title={title}
+                body={body}
+                img={`/images/why/v${variant}/detail-${imgSlot}.webp`}
+              />
             ))}
           </div>
         </div>
@@ -118,12 +139,12 @@ function BenefitCard({
 }
 
 /** A marketplace listing as a buyer would actually see it. */
-function ListingCard() {
+function ListingCard({ variant }: { variant: number }) {
   return (
     <div className="mx-auto w-full max-w-[380px] overflow-hidden rounded-brand-lg border border-marketplace-line/60 bg-white shadow-lift">
       <div className="relative">
         <PhotoCard
-          src="/images/why/listing-hero.webp"
+          src={`/images/why/v${variant}/listing-hero.webp`}
           alt="The finished hero image as it appears in a marketplace listing"
           className="aspect-[4/5] w-full"
           radius={0}
@@ -142,7 +163,7 @@ function ListingCard() {
         {['a', 'b', 'c', 'd'].map((k, i) => (
           <PhotoCard
             key={k}
-            src={`/images/why/thumb-${i + 1}.webp`}
+            src={`/images/why/v${variant}/thumb-${i + 1}.webp`}
             alt=""
             className={`h-14 flex-1 ${i === 0 ? 'ring-2 ring-marketplace-violet' : ''}`}
             radius={10}
