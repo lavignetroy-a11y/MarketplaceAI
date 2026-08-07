@@ -44,7 +44,7 @@ export function WhyItMatters() {
   return (
     <section id="why" className="section relative overflow-hidden bg-marketplace-canvas/40">
       <div className="page-shell mx-auto max-w-page">
-        <div className="mx-auto max-w-[680px] text-center">
+        <div className="mx-auto max-w-[720px] text-center">
           <Eyebrow>Why better photos matter</Eyebrow>
           <SectionTitle className="mt-4">
             A better listing works before you answer a <Accent>single message.</Accent>

@@ -34,12 +34,12 @@ export function HowItWorks() {
   return (
     <section id="how-it-works" className="section relative overflow-hidden bg-marketplace-canvas/40">
       <div className="page-shell mx-auto max-w-page">
-        <div className="max-w-[620px]">
+        <div className="mx-auto max-w-[720px] text-center">
           <Eyebrow>How it works</Eyebrow>
           <SectionTitle className="mt-5">
             From camera roll to <Accent>ready to post.</Accent>
           </SectionTitle>
-          <Lede className="mt-6 max-w-[500px]">
+          <Lede className="mx-auto mt-5 max-w-[560px]">
             Upload the photos you already have, choose the coverage you want, and receive a
             polished listing set. No editing skills, no prompt writing.
           </Lede>

@@ -7,3 +7,6 @@ npm-debug.log*
 
 # TypeScript incremental build cache
 *.tsbuildinfo
+
+# Visual harness output
+.shots/
