@@ -14,6 +14,7 @@ import {
   X,
 } from 'lucide-react';
 import { Logo } from '@/components/marketing/Logo';
+import { estimateCost, formatCost, type StudioQuality } from '@/lib/studio/cost';
 
 type Row = {
   id: string;
@@ -63,7 +64,7 @@ export default function StudioPage() {
   const [status, setStatus] = useState<Record<string, Status>>({});
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [selected, setSelected] = useState<Set<string>>(new Set());
-  const [quality, setQuality] = useState<'low' | 'medium' | 'high'>('high');
+  const [quality, setQuality] = useState<StudioQuality>('high');
   const [running, setRunning] = useState(false);
   const [openPrompt, setOpenPrompt] = useState<string | null>(null);
   const [copied, setCopied] = useState<string | null>(null);
@@ -95,6 +96,14 @@ export default function StudioPage() {
 
   const missing = rows?.filter((r) => !r.exists) ?? [];
   const byId = useMemo(() => new Map((rows ?? []).map((r) => [r.id, r])), [rows]);
+  const missingCost = estimateCost(
+    missing.map((r) => r.size),
+    quality,
+  );
+  const lowCost = estimateCost(
+    missing.map((r) => r.size),
+    'low',
+  );
 
   /** True when this shot is derived from a root image that hasn't been generated yet. */
   const blockedBy = useCallback(
@@ -196,7 +205,7 @@ export default function StudioPage() {
             className="inline-flex min-h-[44px] items-center gap-2 rounded-[12px] bg-violet-blue px-5 text-[0.875rem] font-semibold text-white shadow-[0_8px_20px_rgba(122,92,255,0.3)] disabled:opacity-50"
           >
             {running ? <Loader2 className="h-4 w-4 animate-spin" /> : <Play className="h-4 w-4" />}
-            Generate all missing ({missing.length})
+            Generate all missing ({missing.length}) · ~{formatCost(missingCost)}
           </button>
           <button
             type="button"
@@ -220,10 +229,16 @@ export default function StudioPage() {
       <div className="mt-6 flex items-start gap-3 rounded-brand border border-marketplace-warning/30 bg-marketplace-warning/[0.07] p-4">
         <AlertTriangle className="mt-0.5 h-4.5 w-4.5 shrink-0 text-marketplace-warning" />
         <p className="text-[0.8375rem] leading-[1.55] text-marketplace-muted">
-          <span className="font-medium text-marketplace-ink">Each generation costs money.</span>{' '}
-          Generating all {missing.length} missing images makes {missing.length} API calls. Test a
-          single image first, check the result, then run the batch. Files are written straight into{' '}
-          <code className="font-mono">public/images/</code> — commit them when you&rsquo;re happy.
+          <span className="font-medium text-marketplace-ink">
+            All {missing.length} missing at <em className="not-italic font-mono">{quality}</em>{' '}
+            quality is about {formatCost(missingCost)}
+          </span>{' '}
+          — an estimate of output cost only, before the input tokens each reference image adds.
+          Low quality is roughly 35&times; cheaper: the same {missing.length} images cost about{' '}
+          {formatCost(lowCost)}, which makes a full low pass the cheap way to check framing and
+          composition across the whole set before paying for the real thing. Files are written
+          straight into <code className="font-mono">public/images/</code> — commit them when
+          you&rsquo;re happy.
         </p>
       </div>
 
