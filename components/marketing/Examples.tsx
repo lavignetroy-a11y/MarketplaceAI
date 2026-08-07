@@ -4,13 +4,16 @@ import { useState } from 'react';
 import { ArrowRight, Camera, Clock, Eye, Images, Quote, ShieldCheck, Tag } from 'lucide-react';
 import { Accent, Eyebrow, Lede, PhotoCard, SectionTitle, gradientStroke } from './primitives';
 import { TESTIMONIALS } from '@/lib/config/claims';
+import {
+  EXAMPLE_CATEGORIES,
+  EXAMPLE_RESULT_COUNT,
+  EXAMPLE_SOURCE_COUNT,
+  type CategoryKey,
+} from '@/lib/config/categories';
 
-const CATEGORIES = [
-  { key: 'furniture', label: 'Furniture', item: 'Used dining chair', sources: 4, images: 8 },
-  { key: 'vehicles', label: 'Vehicles', item: '2016 SUV', sources: 5, images: 10 },
-  { key: 'plants', label: 'Plants', item: 'Monstera Deliciosa', sources: 3, images: 6 },
-  { key: 'tools', label: 'Tools', item: 'Cordless drill set', sources: 4, images: 6 },
-] as const;
+// Same shared list the reveal section and the image generator use -- these keys are the
+// filename prefixes under public/images/examples/, so a local copy drifts into blank tiles.
+const CATEGORIES = EXAMPLE_CATEGORIES;
 
 const BENEFITS = [
   {
@@ -36,7 +39,7 @@ const BENEFITS = [
  * would work for what I'm selling".
  */
 export function Examples() {
-  const [active, setActive] = useState<(typeof CATEGORIES)[number]['key']>('furniture');
+  const [active, setActive] = useState<CategoryKey>('furniture');
   const current = CATEGORIES.find((c) => c.key === active) ?? CATEGORIES[0];
 
   return (
@@ -133,8 +136,8 @@ export function Examples() {
           <div className="mt-7 flex flex-wrap justify-center gap-3">
             {[
               { icon: Tag, text: current.item },
-              { icon: Camera, text: `${current.sources} source photos` },
-              { icon: Images, text: `${current.images}-image set` },
+              { icon: Camera, text: `${EXAMPLE_SOURCE_COUNT} source photos` },
+              { icon: Images, text: `${EXAMPLE_RESULT_COUNT}-image set` },
               { icon: Clock, text: 'Finished in minutes' },
             ].map(({ icon: Icon, text }) => (
               <span

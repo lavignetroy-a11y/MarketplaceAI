@@ -3,16 +3,11 @@
 import { useState } from 'react';
 import { ArrowRight, Eye, Grid2x2, LayoutGrid, ShieldCheck, Sparkles, Star } from 'lucide-react';
 import { Accent, Eyebrow, IconChip, Lede, PhotoCard, SectionTitle, gradientStroke } from './primitives';
+import { ITEM_CATEGORIES, type CategoryKey } from '@/lib/config/categories';
 
-const CATEGORIES = [
-  { key: 'furniture', label: 'Furniture' },
-  { key: 'vehicles', label: 'Vehicles' },
-  { key: 'tools', label: 'Tools' },
-  { key: 'plants', label: 'Plants' },
-  { key: 'collectibles', label: 'Collectibles' },
-] as const;
-
-type CategoryKey = (typeof CATEGORIES)[number]['key'];
+// Tabs come from the shared category list because these keys are also the folder names the
+// images are generated into -- a local copy here drifts and the tiles silently go blank.
+const CATEGORIES = ITEM_CATEGORIES;
 
 // Shot roles are constant across categories; only the folder changes. Image paths are derived
 // from the active tab so switching categories actually swaps the set rather than just

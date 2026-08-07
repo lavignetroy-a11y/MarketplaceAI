@@ -1,3 +1,4 @@
+import { EXAMPLE_CATEGORY_KEYS, type CategoryKey } from '../config/categories';
 import {
   amateurClause,
   CONSISTENCY_CLAUSE,
@@ -42,7 +43,7 @@ export type StudioImage = {
 // ---------------------------------------------------------------------------
 
 type Subject = {
-  key: string;
+  key: CategoryKey;
   label: string;
   /** what the thing IS -- specific enough that every shot renders the same object */
   description: string;
@@ -70,7 +71,9 @@ const CHAIR_REFS = ['/images/hero/main.webp', '/images/hero/alt-1.webp', '/image
 // Categories are chosen on one test: has the visitor personally sold one, or are they about to?
 // Not "is it attractive". These five are the things that get listed constantly, photographed
 // badly, and sold under value because the photos are the only thing a buyer has to go on.
-const SUBJECTS: Record<string, Subject> = {
+// Keyed by CategoryKey so the folder names here and the tabs the site renders cannot diverge:
+// drop a category from lib/config/categories.ts and this stops compiling.
+const SUBJECTS: Record<CategoryKey, Subject> = {
   furniture: {
     key: 'furniture',
     label: 'Furniture',
@@ -384,8 +387,7 @@ for (const subject of Object.values(SUBJECTS)) {
 }
 
 // --- examples/: before/after proof for the four categories the section shows ---
-const EXAMPLE_KEYS = ['furniture', 'outdoor', 'appliances', 'tools'] as const;
-for (const key of EXAMPLE_KEYS) {
+for (const key of EXAMPLE_CATEGORY_KEYS) {
   const subject = SUBJECTS[key];
   finished({
     id: `examples/${key}-result-hero`,
