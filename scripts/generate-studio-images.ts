@@ -156,6 +156,13 @@ async function main() {
       console.log(`\n  ${failures.length} failed:`);
       for (const f of failures) console.log(`    ${f.id}\n      ${f.reason}`);
       console.log('\n  Re-run the same command to retry only these — finished images are skipped.\n');
+    } else if (done === 0) {
+      // Interrupting mid-backoff left the in-flight image neither generated nor recorded as
+      // failed, and reporting "No failures" next to "Generated 0" read as though nothing had
+      // gone wrong. Say what actually happened.
+      console.log('  Nothing generated. The run stopped before any image completed.\n');
+    } else if (done < ids.length) {
+      console.log(`  Stopped early — ${ids.length - done} not attempted. Re-run to continue.\n`);
     } else {
       console.log('  No failures.\n');
     }
