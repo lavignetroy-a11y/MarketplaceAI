@@ -11,9 +11,6 @@ import { shotLabels } from '@/lib/config/shotLabels';
 // images are generated into -- a local copy here drifts and the tiles silently go blank.
 const CATEGORIES = ITEM_CATEGORIES;
 
-// Shot roles are constant across categories; only the folder changes. Image paths are derived
-// from the active tab so switching categories actually swaps the set rather than just
-// restyling the button.
 // Only the grid geometry is fixed. What each tile SHOWS depends on the item on display, so the
 // labels come from that item's shot vocabulary -- a washer's slot 2 is its open door, not a
 // "rear angle" it could never be photographed from.
@@ -133,7 +130,7 @@ export function CampaignReveal() {
           </div>
         </div>
 
-        <div className="mt-12 grid gap-6 rounded-brand-lg border border-marketplace-line/60 bg-white/75 p-7 shadow-soft backdrop-blur sm:grid-cols-2 lg:grid-cols-4">
+        <div className="mt-10 grid gap-6 rounded-brand-lg border border-marketplace-line/60 bg-white/75 p-7 shadow-soft backdrop-blur sm:grid-cols-2 lg:grid-cols-4">
           <div className="flex items-center gap-4">
             <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-violet-blue shadow-[0_8px_22px_rgba(122,92,255,0.35)]">
               <Sparkles className="h-6 w-6 text-white" strokeWidth={2} />

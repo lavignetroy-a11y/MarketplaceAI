@@ -67,7 +67,7 @@ export function Trust() {
         </div>
         </div>
 
-        <div className="mt-14 grid gap-6 rounded-brand-xl border border-marketplace-line/60 bg-white/70 p-6 shadow-soft backdrop-blur lg:grid-cols-[minmax(0,0.62fr)_minmax(0,1.5fr)_minmax(0,0.78fr)]">
+        <div className="mt-10 grid gap-6 rounded-brand-xl border border-marketplace-line/60 bg-white/70 p-6 shadow-soft backdrop-blur lg:grid-cols-[minmax(0,0.62fr)_minmax(0,1.5fr)_minmax(0,0.78fr)]">
           <div>
             <div className="flex items-center gap-2.5">
               <Sparkles className="h-5 w-5" {...gradientStroke} strokeWidth={2} />

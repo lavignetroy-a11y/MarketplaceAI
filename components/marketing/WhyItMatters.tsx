@@ -61,7 +61,7 @@ export function WhyItMatters() {
         </div>
         </div>
 
-        <div className="mt-14 grid items-center gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,0.95fr)_minmax(0,1fr)]">
+        <div className="mt-10 grid items-center gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,0.95fr)_minmax(0,1fr)]">
           <div className="flex flex-col gap-5">
             {LEFT.map(({ icon: Icon, title, body, imgSlot }) => (
               <BenefitCard

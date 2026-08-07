@@ -54,7 +54,7 @@ export function Pricing() {
         </div>
         </div>
 
-        <div className="mt-12 grid items-stretch gap-6 lg:grid-cols-[minmax(0,1.05fr)_minmax(0,0.95fr)]">
+        <div className="mt-10 grid items-stretch gap-6 lg:grid-cols-[minmax(0,1.05fr)_minmax(0,0.95fr)]">
           {/* the counter */}
           <div className="rounded-brand-xl border border-marketplace-line/60 bg-white/85 p-8 shadow-lift backdrop-blur">
             <p className="text-[0.875rem] font-medium text-marketplace-muted">

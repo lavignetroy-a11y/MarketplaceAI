@@ -50,7 +50,7 @@ export function HowItWorks() {
         </div>
         </div>
 
-        <ol className="mt-12 grid gap-8 lg:grid-cols-3 lg:gap-6">
+        <ol className="mt-10 grid gap-8 lg:grid-cols-3 lg:gap-6">
           {STEPS.map((step, i) => (
             <li key={step.n} className="relative">
               <div className="flex items-start gap-4">
@@ -75,7 +75,7 @@ export function HowItWorks() {
           ))}
         </ol>
 
-        <div className="mt-12 flex flex-wrap items-center justify-center gap-x-7 gap-y-4 rounded-brand-lg border border-marketplace-line/60 bg-white/75 px-7 py-6 shadow-soft backdrop-blur">
+        <div className="mt-10 flex flex-wrap items-center justify-center gap-x-7 gap-y-4 rounded-brand-lg border border-marketplace-line/60 bg-white/75 px-7 py-6 shadow-soft backdrop-blur">
           <Link
             href="/upload"
             className="inline-flex min-h-[48px] items-center gap-2 rounded-[14px] bg-violet-blue px-6 text-[0.9375rem] font-semibold text-white shadow-[0_8px_22px_rgba(122,92,255,0.32)] transition-transform hover:-translate-y-px"

@@ -81,7 +81,7 @@ export function FinalCta() {
           </div>
         </div>
 
-        <div className="mt-12 flex flex-wrap items-center justify-center gap-4">
+        <div className="mt-10 flex flex-wrap items-center justify-center gap-4">
           <Link
             href="/upload"
             className="inline-flex min-h-[54px] items-center gap-2.5 rounded-[16px] bg-violet-blue px-8 text-[1rem] font-semibold text-white shadow-[0_14px_34px_rgba(122,92,255,0.45)] transition-transform hover:-translate-y-px"

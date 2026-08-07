@@ -63,11 +63,13 @@ video {
   }
 
   .section {
-    padding-block: clamp(80px, 9vw, 150px);
+    /* Tightened from 150px. At the old value two adjacent sections put 300px of empty space
+       between them, which reads as separate pages rather than one continuous argument. */
+    padding-block: clamp(68px, 7vw, 112px);
   }
 
   .section-compact {
-    padding-block: clamp(60px, 7vw, 110px);
+    padding-block: clamp(56px, 6vw, 92px);
   }
 }
 
