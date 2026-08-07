@@ -22,6 +22,7 @@ type Row = {
   label: string;
   size: string;
   references: number;
+  dependsOn: string[];
   prompt: string;
   exists: boolean;
   bytes: number;
@@ -32,6 +33,30 @@ type Status = 'idle' | 'queued' | 'running' | 'done' | 'error';
 // Sequential, not parallel: image generation is rate-limited and each call is expensive, so a
 // burst of 117 concurrent requests would mostly turn into 429s and wasted spend.
 const MAX_CONCURRENT = 1;
+
+/**
+ * Orders a batch so every image's dependencies run before it. Each category's "before" photos and
+ * alternate angles are edits against that category's root shot, so firing them in manifest order
+ * would fail every derived image on the first pass.
+ */
+function orderByDependency(ids: string[], byId: Map<string, Row>): string[] {
+  const wanted = new Set(ids);
+  const ordered: string[] = [];
+  const placed = new Set<string>();
+
+  const visit = (id: string, seen: Set<string>) => {
+    if (placed.has(id) || seen.has(id)) return;
+    seen.add(id);
+    for (const dep of byId.get(id)?.dependsOn ?? []) {
+      if (wanted.has(dep)) visit(dep, seen);
+    }
+    placed.add(id);
+    ordered.push(id);
+  };
+
+  for (const id of ids) visit(id, new Set());
+  return ordered;
+}
 
 export default function StudioPage() {
   const [rows, setRows] = useState<Row[] | null>(null);
@@ -69,6 +94,13 @@ export default function StudioPage() {
   }, [rows]);
 
   const missing = rows?.filter((r) => !r.exists) ?? [];
+  const byId = useMemo(() => new Map((rows ?? []).map((r) => [r.id, r])), [rows]);
+
+  /** True when this shot is derived from a root image that hasn't been generated yet. */
+  const blockedBy = useCallback(
+    (row: Row) => row.dependsOn.filter((d) => !byId.get(d)?.exists),
+    [byId],
+  );
 
   async function generateOne(id: string) {
     setStatus((s) => ({ ...s, [id]: 'running' }));
@@ -92,8 +124,9 @@ export default function StudioPage() {
     }
   }
 
-  async function runBatch(ids: string[]) {
-    if (!ids.length || running) return;
+  async function runBatch(rawIds: string[]) {
+    if (!rawIds.length || running) return;
+    const ids = orderByDependency(rawIds, byId);
     setRunning(true);
     setStatus((s) => ({ ...s, ...Object.fromEntries(ids.map((id) => [id, 'queued' as Status])) }));
     for (let i = 0; i < ids.length; i += MAX_CONCURRENT) {
@@ -214,6 +247,7 @@ export default function StudioPage() {
             <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
               {items.map((row) => {
                 const st = status[row.id] ?? 'idle';
+                const blocked = blockedBy(row);
                 return (
                   <div
                     key={row.id}
@@ -279,11 +313,19 @@ export default function StudioPage() {
                         </p>
                       )}
 
+                      {blocked.length > 0 && st !== 'error' && (
+                        <p className="mt-2 text-[0.75rem] leading-snug text-marketplace-muted">
+                          Derived from{' '}
+                          <span className="font-mono text-marketplace-ink">{blocked.join(', ')}</span>{' '}
+                          — generate that first.
+                        </p>
+                      )}
+
                       <div className="mt-3 flex gap-2">
                         <button
                           type="button"
                           onClick={() => generateOne(row.id)}
-                          disabled={running || st === 'running'}
+                          disabled={running || st === 'running' || blocked.length > 0}
                           className="flex-1 rounded-[10px] bg-marketplace-ink px-3 py-2 text-[0.75rem] font-semibold text-white disabled:opacity-50"
                         >
                           {row.exists ? 'Regenerate' : 'Generate'}

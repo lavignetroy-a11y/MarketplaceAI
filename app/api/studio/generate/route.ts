@@ -3,7 +3,7 @@ import fs from 'fs/promises';
 import path from 'path';
 import OpenAI from 'openai';
 import sharp from 'sharp';
-import { studioImageById } from '@/lib/studio/manifest';
+import { resolveReferences, studioImageById } from '@/lib/studio/manifest';
 
 export const runtime = 'nodejs';
 export const maxDuration = 300;
@@ -41,15 +41,39 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Unknown image id.' }, { status: 404 });
   }
 
+  // A missing dependency is the one failure worth catching before spending anything: without the
+  // root shot, a "before" photo is generated from nothing and comes back as a different item in a
+  // different room, which is precisely the bug the chain exists to prevent.
+  const missingDeps: string[] = [];
+  for (const depId of image.dependsOn) {
+    const dep = studioImageById(depId);
+    if (!dep) continue;
+    const abs = path.join(process.cwd(), 'public', dep.path.replace(/^\//, ''));
+    try {
+      await fs.access(abs);
+    } catch {
+      missingDeps.push(depId);
+    }
+  }
+  if (missingDeps.length) {
+    return NextResponse.json(
+      {
+        error: `Generate ${missingDeps.join(', ')} first — this shot is derived from it.`,
+        missingDependencies: missingDeps,
+      },
+      { status: 409 },
+    );
+  }
+
   const client = new OpenAI({ apiKey });
   const model = process.env.OPENAI_IMAGE_MODEL || 'gpt-image-2';
   const quality = body.quality ?? 'high';
 
   try {
-    // Reference images keep a generated shot matching an item already on the site; without them
-    // the same "chair" drifts into a different chair section by section.
+    // References are what keep one chair, one mower, one washer running through the whole site.
+    // Without them the same item drifts into a different item section by section.
     const refs = await Promise.all(
-      image.references.map(async (p) => {
+      resolveReferences(image).map(async (p) => {
         const abs = path.join(process.cwd(), 'public', p.replace(/^\//, ''));
         const buf = await fs.readFile(abs);
         return new File([new Uint8Array(buf)], path.basename(abs), { type: 'image/webp' });

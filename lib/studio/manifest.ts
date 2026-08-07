@@ -1,9 +1,22 @@
-import { AMATEUR_CLAUSE, CONSISTENCY_CLAUSE, STYLE_CONTRACT } from './styleContract';
+import {
+  amateurClause,
+  CONSISTENCY_CLAUSE,
+  SAME_SCENE_CLAUSE,
+  STYLE_CONTRACT,
+} from './styleContract';
 
 // Every image the site needs, with the prompt that produces it.
 //
-// Prompts are composed rather than hand-written: STYLE_CONTRACT + subject + shot role. Hand-
-// writing 117 prompts would guarantee they drift apart; composing them guarantees they don't.
+// Two rules shape this file.
+//
+// 1. Prompts are composed, not hand-written: STYLE_CONTRACT + subject + shot role. Writing 117
+//    prompts by hand would guarantee they drift into 117 unrelated stock photos.
+//
+// 2. Images are chained, not independent. Each category has one canonical root shot; every other
+//    image in that category is generated as an edit against it. Without this, a "before" and an
+//    "after" are two separate rolls of the dice -- two similar-ish objects in two different
+//    rooms -- and a viewer cannot tell which is which, because there is no relationship between
+//    them to read. The chain is what turns a pile of pictures into a comparison.
 
 export type StudioSize = '1024x1024' | '1024x1536' | '1536x1024';
 
@@ -15,11 +28,13 @@ export type StudioImage = {
   label: string;
   prompt: string;
   size: StudioSize;
+  /** Real files on disk, always available as references. */
+  staticReferences: string[];
   /**
-   * Reference images (public paths) passed to the edit endpoint so the generated item matches
-   * one already on the site. Empty means pure text-to-image.
+   * Ids of other studio images whose output is used as a reference for this one. Those must be
+   * generated first -- the batch runner orders by this, and the API refuses if one is missing.
    */
-  references: string[];
+  dependsOn: string[];
 };
 
 // ---------------------------------------------------------------------------
@@ -31,21 +46,30 @@ type Subject = {
   label: string;
   /** what the thing IS -- specific enough that every shot renders the same object */
   description: string;
-  /** where it plausibly lives */
+  /** the room, tidied and properly lit. The "before" happens here too, just untidied. */
   setting: string;
   /** the material worth showing in a macro crop */
   texture: string;
   /** honest, visible wear -- the product's whole promise is that this survives */
   condition: string;
+  /**
+   * How the "before" photo is badly lit. This has to be per-subject: a mower on a driveway is
+   * never lit by a ceiling bulb, and a washer in an alcove is never lit by overcast sky.
+   */
+  badLight: string;
+  /** The everyday mess left in shot, appropriate to where this item actually lives. */
+  clutter: string;
   /** reference photos of the real item, when we have them */
   references: string[];
 };
 
-// The tufted chair is the site's anchor item and we have real photos of it, so furniture shots
-// are generated as edits against those references rather than from text alone. Everything else
-// is text-to-image.
+// The tufted chair is the site's anchor item and we have real photographs of it, so it stays the
+// root of the furniture chain rather than being generated from text.
 const CHAIR_REFS = ['/images/hero/main.webp', '/images/hero/alt-1.webp', '/images/hero/alt-3.webp'];
 
+// Categories are chosen on one test: has the visitor personally sold one, or are they about to?
+// Not "is it attractive". These five are the things that get listed constantly, photographed
+// badly, and sold under value because the photos are the only thing a buyer has to go on.
 const SUBJECTS: Record<string, Subject> = {
   furniture: {
     key: 'furniture',
@@ -55,70 +79,118 @@ const SUBJECTS: Record<string, Subject> = {
       'backrest, a subtle tone-on-tone damask weave in the fabric, gently curved wing sides, ' +
       'rolled arms, a single box-edge seat cushion, and four tapered dark espresso-stained wooden legs',
     setting:
-      'a bright, simply furnished living room corner with a soft white wall, warm oak floorboards, ' +
-      'and a pale linen curtain at the window',
+      'a corner of an ordinary living room with a soft white wall, warm oak floorboards, a plain ' +
+      'pale linen curtain at the window, and a simple low bookshelf against the far wall',
     texture:
       'the tufted upholstery — the button dimples, the woven damask pattern in the fabric, and the ' +
       'piped seam along the arm',
     condition:
       'light honest wear consistent with a used item: faint compression in the seat cushion and ' +
       'slight softening at the front arm edges',
+    badLight:
+      'a single ceiling bulb burning against weak daylight from a half-drawn curtain, flat and ' +
+      'top-down, giving the whole frame a muddy yellow-green cast',
+    clutter:
+      'a plastic laundry basket, a couple of flattened cardboard boxes leaning against the wall, ' +
+      'a power cord trailing across the floorboards, and a coat slung over the bookshelf',
     references: CHAIR_REFS,
   },
-  vehicles: {
-    key: 'vehicles',
-    label: 'Vehicles',
+
+  outdoor: {
+    key: 'outdoor',
+    label: 'Outdoor & powersports',
     description:
-      'a silver-grey mid-size five-door family SUV, roughly ten years old, with alloy wheels, ' +
-      'body-coloured mirrors, roof rails, and clean unbadged bodywork',
+      'a red and black riding lawn tractor with a wide mid-mounted cutting deck, a black moulded ' +
+      'seat with a low backrest, a black steering wheel, chunky treaded rear tyres and smaller ' +
+      'smooth front tyres, and plain unmarked bodywork with no badges or lettering anywhere',
     setting:
-      'a residential driveway in front of a plain garage door, with a strip of lawn and mature ' +
-      'trees behind, under bright overcast daylight',
+      'a plain concrete driveway directly in front of a closed sectional garage door, with a low ' +
+      'brick house wall to one side and a narrow strip of mown lawn in the foreground',
     texture:
-      'the front alloy wheel and tyre sidewall, with the lower door panel and wheel arch behind it',
+      'the deep-treaded rear tyre and the steel wheel rim behind it, with the mower deck edge above',
     condition:
-      'honest used-car wear: a few fine paint swirls catching the light and light stone-chipping ' +
-      'along the lower front bumper',
+      'honest working wear: dried grass clippings packed along the deck edge, dulled and lightly ' +
+      'scratched paint on the deck, and scuffing on the footplate where boots have rested',
+    badLight:
+      'flat colourless overcast at midday with the sun straight overhead, so the whole frame is ' +
+      'grey and dull with no direction to the light and no shape on the item',
+    clutter:
+      'a green wheelie bin, a coiled garden hose dumped on the concrete, a leaf rake and a spade ' +
+      'leaning against the house wall, and the garage door rolled half open with storage boxes ' +
+      'visible in the dark behind it',
     references: [],
   },
+
+  appliances: {
+    key: 'appliances',
+    label: 'Appliances',
+    description:
+      'a white front-loading washing machine with a large round chrome-rimmed glass door, a flat ' +
+      'top surface, a recessed detergent drawer, and a plain control panel with unmarked dials ' +
+      'and blank buttons carrying no lettering, numbers, or symbols',
+    setting:
+      'a small domestic laundry alcove with pale grey painted walls, a plain grey tiled floor, a ' +
+      'white shelf above holding two folded towels, and a shallow window at the far end',
+    texture:
+      'the chrome door rim meeting the white enamel front panel, showing the rubber door seal ' +
+      'behind the glass',
+    condition:
+      'honest used-appliance wear: a faint chalky detergent residue in the drawer recess, a light ' +
+      'scuff on the lower front panel, and slight dulling of the enamel around the door edge',
+    badLight:
+      'one bare ceiling bulb in a cramped alcove with the daylight behind the camera blocked, ' +
+      'harsh from directly above and dropping straight into shadow below',
+    clutter:
+      'detergent bottles and a scrunched packet crowded on the machine top, a heap of unfolded ' +
+      'laundry on the floor, a mop and bucket wedged in the corner, and a towel hanging off the shelf',
+    references: [],
+  },
+
   tools: {
     key: 'tools',
-    label: 'Tools',
+    label: 'Tools & equipment',
     description:
-      'a yellow and black cordless power drill with a keyless chuck, a clip-in battery pack, and ' +
-      'a rubberised grip, alongside its matching spare battery',
+      'a red steel rolling tool chest about chest height, with seven drawers of varying depth, ' +
+      'brushed metal drawer pulls, a flat black work surface on top, black rubber-tyred swivel ' +
+      'castors, and plain unmarked drawer fronts with no lettering or labels',
     setting:
-      'a tidy home workshop bench with a scuffed natural timber worktop and a plain grey wall behind',
-    texture: 'the rubberised grip and the metal chuck jaws',
-    condition: 'genuine use: light scuffing on the housing and faint dust in the grip texture',
+      'the working corner of an ordinary attached garage with a plain grey breeze-block wall, a ' +
+      'sealed concrete floor, and a simple timber workbench alongside',
+    texture: 'a single drawer front and its brushed metal pull, with the drawer edges above and below',
+    condition:
+      'genuine use: small dings and chips in the red paint along the drawer edges, faint grease ' +
+      'marks around the pulls, and light surface scratching on the black work top',
+    badLight:
+      'a single bare fluorescent strip light high on the garage ceiling, cold and flat, throwing ' +
+      'a hard shadow straight down under the chest',
+    clutter:
+      'part-used paint tins stacked on the floor, an open toolbox with its contents spilling out, ' +
+      'timber offcuts leaning in the corner, and a bicycle propped against the workbench',
     references: [],
   },
-  plants: {
-    key: 'plants',
-    label: 'Plants',
+
+  fitness: {
+    key: 'fitness',
+    label: 'Exercise & fitness',
     description:
-      'a healthy mature Monstera deliciosa about waist height, with large glossy fenestrated ' +
-      'leaves on arching stems, planted in a plain ribbed cream ceramic pot',
+      'an adjustable black steel weight bench with thick black vinyl padding, set beside an ' +
+      'upright squat rack holding a knurled steel olympic barbell, with four black rubber-coated ' +
+      'weight plates stacked on a small floor rack nearby, all unmarked and free of lettering',
     setting:
-      'beside a bright window on warm oak floorboards against a soft white wall',
-    texture: 'a single large leaf, showing the fenestration edges and raised leaf veins',
+      'a cleared corner of an attached garage with interlocking black rubber floor matting, a ' +
+      'plain painted breeze-block wall, and a small window high on the wall',
+    texture:
+      'the knurled grip section of the steel barbell where it sits in the rack, with the rack ' +
+      'upright behind it',
     condition:
-      'a real living plant rather than a perfect one: one slightly yellowing lower leaf and a ' +
-      'small nick in one leaf edge',
-    references: [],
-  },
-  collectibles: {
-    key: 'collectibles',
-    label: 'Collectibles',
-    description:
-      'a vintage 1960s rangefinder film camera in chrome and black leatherette, with a fixed lens, ' +
-      'a knurled focus ring, and a top-plate winding lever',
-    setting:
-      'on a walnut tabletop against a soft neutral wall, with a plain linen cloth beneath it',
-    texture: 'the knurled metal focus ring and the leatherette body covering',
-    condition:
-      'age-appropriate wear: fine brassing on the chrome edges and slight shine on the leatherette ' +
-      'where it has been handled',
+      'honest used-equipment wear: light rust speckling in the barbell knurling, a scuffed patch ' +
+      'and a small crease in the vinyl bench padding, and chipped edges on the rubber plates',
+    badLight:
+      'one dim bulb on the garage ceiling with the door shut, so the corner is gloomy, the ' +
+      'shadows go flat black, and the whole frame reads cold and blue',
+    clutter:
+      'stacked plastic storage bins along the wall, a folded camping chair, a bulging bin bag of ' +
+      'old clothes, and a cardboard box with its flaps open',
     references: [],
   },
 };
@@ -131,7 +203,6 @@ type Role = {
   key: string;
   label: string;
   size: StudioSize;
-  /** builds the shot-specific half of the prompt */
   brief: (s: Subject) => string;
 };
 
@@ -141,9 +212,11 @@ const ROLES: Record<string, Role> = {
     label: 'Hero image',
     size: '1024x1536',
     brief: (s) =>
-      `A hero listing photograph of ${s.description}, positioned in ${s.setting}. ` +
-      `Three-quarter front view, the whole item in frame with comfortable space around it. ` +
-      `The item occupies roughly 70% of the frame height and is the unmistakable subject. ` +
+      `A hero listing photograph of ${s.description}. The setting is ${s.setting}. ` +
+      `Three-quarter front view from chest height, level, with the whole item in frame and ` +
+      `comfortable even space around it. The item occupies roughly 70% of the frame height and is ` +
+      `the unmistakable subject. The place has been tidied and the item is well lit, but it is ` +
+      `plainly an ordinary everyday setting rather than a styled set. ` +
       `Keep the item's real condition plainly visible — ${s.condition}. Do not clean it up.`,
   },
   alt: {
@@ -151,8 +224,9 @@ const ROLES: Record<string, Role> = {
     label: 'Alternate angle',
     size: '1024x1024',
     brief: (s) =>
-      `The same ${s.description} in the same room, photographed from the opposite three-quarter ` +
-      `angle so the other side is shown. Whole item in frame, slightly tighter than the hero.`,
+      `The same ${s.description}, in the same room, photographed from the opposite three-quarter ` +
+      `angle so the other side is shown. Whole item in frame, framed slightly tighter than the ` +
+      `hero shot.`,
   },
   texture: {
     key: 'texture',
@@ -168,8 +242,8 @@ const ROLES: Record<string, Role> = {
     label: 'Rear angle',
     size: '1024x1024',
     brief: (s) =>
-      `The same ${s.description} photographed from behind in the same room, showing the back and ` +
-      `rear construction. Whole item in frame.`,
+      `The same ${s.description}, in the same room, photographed from behind and slightly to one ` +
+      `side, showing the back and rear construction. Whole item in frame.`,
   },
   condition: {
     key: 'condition',
@@ -185,8 +259,9 @@ const ROLES: Record<string, Role> = {
     label: 'Context shot',
     size: '1536x1024',
     brief: (s) =>
-      `A wider room photograph showing ${s.description} in use within ${s.setting}, with enough ` +
-      `surrounding room visible to read the item's real scale. The item remains the clear subject.`,
+      `A wider photograph of ${s.description}, pulled back to take in more of the setting — ` +
+      `${s.setting} — with enough of the surroundings visible to read the item's real scale. ` +
+      `The item remains the clear subject.`,
   },
 };
 
@@ -194,222 +269,281 @@ const ROLES: Record<string, Role> = {
 // Prompt assembly
 // ---------------------------------------------------------------------------
 
-function compose(subject: Subject, brief: string, opts?: { amateur?: boolean }): string {
+function compose(brief: string, opts: { consistency?: boolean; sameScene?: boolean } = {}): string {
   const parts = [STYLE_CONTRACT, '', 'THIS SHOT', brief];
-  if (opts?.amateur) parts.push('', AMATEUR_CLAUSE);
-  if (subject.references.length && !opts?.amateur) parts.push('', CONSISTENCY_CLAUSE);
+  if (opts.consistency) parts.push('', CONSISTENCY_CLAUSE);
+  if (opts.sameScene) parts.push('', SAME_SCENE_CLAUSE);
   return parts.join('\n');
 }
 
-function sourcePhoto(subject: Subject, n: number, size: StudioSize = '1024x1536'): string {
+/**
+ * The "before" half of a pair. Always generated from the finished shot, never from scratch --
+ * that is what guarantees it is the same item in the same room, which is the claim the whole
+ * product rests on.
+ */
+function beforePhoto(subject: Subject, n: number): string {
   const angles = [
-    'a straight-on front view',
-    'a three-quarter view from the left',
-    'a view from the right side',
-    'a view from behind and slightly to one side',
+    'standing more or less square in front of it, close enough that the top edge is nearly clipped',
+    'standing off to the left and angling the phone down at it',
+    'standing well back to the right, so the item sits small and low in the frame',
+    'standing behind and to one side, catching it at an awkward half-rear angle',
   ];
-  return compose(
-    subject,
-    `An ordinary seller's own phone snapshot of ${subject.description}, ${angles[(n - 1) % 4]}, ` +
-      `taken before it was properly photographed. The whole item is visible.`,
-    { amateur: true },
-  );
+  const brief =
+    `An ordinary seller's own phone snapshot of ${subject.description}, taken ${angles[(n - 1) % 4]}. ` +
+    `The whole item is recognisable even though the photograph is poor. This is the picture that ` +
+    `was going to be listed before anything was done about it.`;
+  return [
+    STYLE_CONTRACT,
+    '',
+    'THIS SHOT',
+    brief,
+    '',
+    amateurClause(subject.badLight, subject.clutter),
+  ].join('\n');
 }
+
+// The root of each category's chain. Everything else in the category is an edit against it, so
+// one chair, one mower, one washer runs through the entire site.
+const rootId = (key: string) => `reveal/${key}/hero`;
 
 let items: StudioImage[] = [];
 const add = (i: StudioImage) => items.push(i);
 
-// --- reveal/: five categories × (6 finished shots + 4 source photos) ---
+/** A finished shot of a subject, chained to that subject's root image. */
+function finished(opts: {
+  id: string;
+  path: string;
+  group: string;
+  label: string;
+  subject: Subject;
+  brief: string;
+  size: StudioSize;
+}) {
+  const isRoot = opts.id === rootId(opts.subject.key);
+  add({
+    id: opts.id,
+    path: opts.path,
+    group: opts.group,
+    label: opts.label,
+    prompt: compose(opts.brief, {
+      consistency: opts.subject.references.length > 0,
+      sameScene: !isRoot,
+    }),
+    size: opts.size,
+    staticReferences: opts.subject.references,
+    dependsOn: isRoot ? [] : [rootId(opts.subject.key)],
+  });
+}
+
+/** A deliberately bad "before" shot, chained to the same subject's root image. */
+function before(opts: {
+  id: string;
+  path: string;
+  group: string;
+  label: string;
+  subject: Subject;
+  n: number;
+  size: StudioSize;
+}) {
+  add({
+    id: opts.id,
+    path: opts.path,
+    group: opts.group,
+    label: opts.label,
+    prompt: beforePhoto(opts.subject, opts.n),
+    size: opts.size,
+    staticReferences: [],
+    dependsOn: [rootId(opts.subject.key)],
+  });
+}
+
+// --- reveal/: five categories × (6 finished shots + 4 before photos) ---
 for (const subject of Object.values(SUBJECTS)) {
   for (const role of Object.values(ROLES)) {
-    add({
+    finished({
       id: `reveal/${subject.key}/${role.key}`,
       path: `/images/reveal/${subject.key}/${role.key}.webp`,
       group: `Campaign reveal — ${subject.label}`,
       label: role.label,
-      prompt: compose(subject, role.brief(subject)),
+      subject,
+      brief: role.brief(subject),
       size: role.size,
-      references: subject.references,
     });
   }
   for (let n = 1; n <= 4; n++) {
-    add({
+    before({
       id: `reveal/${subject.key}/source-${n}`,
       path: `/images/reveal/${subject.key}/source-${n}.webp`,
       group: `Campaign reveal — ${subject.label}`,
-      label: `Source photo ${n}`,
-      prompt: sourcePhoto(subject, n),
+      label: `Before photo ${n}`,
+      subject,
+      n,
       size: '1024x1536',
-      references: [],
     });
   }
 }
 
-// --- examples/: four categories, before/after proof ---
-const EXAMPLE_KEYS = ['furniture', 'vehicles', 'plants', 'tools'] as const;
+// --- examples/: before/after proof for the four categories the section shows ---
+const EXAMPLE_KEYS = ['furniture', 'outdoor', 'appliances', 'tools'] as const;
 for (const key of EXAMPLE_KEYS) {
   const subject = SUBJECTS[key];
-  add({
+  finished({
     id: `examples/${key}-result-hero`,
     path: `/images/examples/${key}-result-hero.webp`,
     group: `Examples — ${subject.label}`,
     label: 'Result hero',
-    prompt: compose(subject, ROLES.hero.brief(subject)),
+    subject,
+    brief: ROLES.hero.brief(subject),
     size: '1536x1024',
-    references: subject.references,
   });
-  const resultRoles = ['alt', 'texture', 'rear', 'context'];
-  resultRoles.forEach((r, i) => {
-    add({
+  (['alt', 'texture', 'rear', 'context'] as const).forEach((r, i) => {
+    finished({
       id: `examples/${key}-result-${i + 1}`,
       path: `/images/examples/${key}-result-${i + 1}.webp`,
       group: `Examples — ${subject.label}`,
       label: `Result ${i + 1} (${ROLES[r].label})`,
-      prompt: compose(subject, ROLES[r].brief(subject)),
+      subject,
+      brief: ROLES[r].brief(subject),
       size: '1024x1024',
-      references: subject.references,
     });
   });
   for (let n = 1; n <= 4; n++) {
-    add({
+    before({
       id: `examples/${key}-source-${n}`,
       path: `/images/examples/${key}-source-${n}.webp`,
       group: `Examples — ${subject.label}`,
-      label: `Source photo ${n}`,
-      prompt: sourcePhoto(subject, n),
+      label: `Before photo ${n}`,
+      subject,
+      n,
       size: '1024x1024',
-      references: [],
     });
   }
 }
 
 // --- why/: the marketplace listing card ---
 const chair = SUBJECTS.furniture;
-add({
+finished({
   id: 'why/listing-hero',
   path: '/images/why/listing-hero.webp',
   group: 'Why it matters',
   label: 'Listing card hero',
-  prompt: compose(chair, ROLES.hero.brief(chair)),
+  subject: chair,
+  brief: ROLES.hero.brief(chair),
   size: '1024x1536',
-  references: chair.references,
 });
 (['alt', 'texture', 'rear', 'context'] as const).forEach((r, i) => {
-  add({
+  finished({
     id: `why/thumb-${i + 1}`,
     path: `/images/why/thumb-${i + 1}.webp`,
     group: 'Why it matters',
     label: `Listing thumbnail ${i + 1}`,
-    prompt: compose(chair, ROLES[r].brief(chair)),
+    subject: chair,
+    brief: ROLES[r].brief(chair),
     size: '1024x1024',
-    references: chair.references,
   });
 });
 (['texture', 'condition', 'alt', 'context'] as const).forEach((r, i) => {
-  add({
+  finished({
     id: `why/detail-${i + 1}`,
     path: `/images/why/detail-${i + 1}.webp`,
     group: 'Why it matters',
     label: `Benefit detail ${i + 1}`,
-    prompt: compose(chair, ROLES[r].brief(chair)),
+    subject: chair,
+    brief: ROLES[r].brief(chair),
     size: '1536x1024',
-    references: chair.references,
   });
 });
 
 // --- how/: the three-step flow ---
 for (let n = 1; n <= 4; n++) {
-  add({
+  before({
     id: `how/source-${n}`,
     path: `/images/how/source-${n}.webp`,
     group: 'How it works',
-    label: `Source photo ${n}`,
-    prompt: sourcePhoto(chair, n),
+    label: `Before photo ${n}`,
+    subject: chair,
+    n,
     size: '1024x1536',
-    references: [],
   });
 }
-add({
+finished({
   id: 'how/result-hero',
   path: '/images/how/result-hero.webp',
   group: 'How it works',
   label: 'Result hero',
-  prompt: compose(chair, ROLES.hero.brief(chair)),
+  subject: chair,
+  brief: ROLES.hero.brief(chair),
   size: '1536x1024',
-  references: chair.references,
 });
 (['alt', 'texture', 'rear', 'condition'] as const).forEach((r, i) => {
-  add({
+  finished({
     id: `how/result-${i + 1}`,
     path: `/images/how/result-${i + 1}.webp`,
     group: 'How it works',
     label: `Result ${i + 1} (${ROLES[r].label})`,
-    prompt: compose(chair, ROLES[r].brief(chair)),
+    subject: chair,
+    brief: ROLES[r].brief(chair),
     size: '1024x1024',
-    references: chair.references,
   });
 });
 
 // --- trust/: the inspection section ---
-add({
+finished({
   id: 'trust/inspect',
   path: '/images/trust/inspect.webp',
   group: 'Trust',
   label: 'Inspection hero',
-  prompt: compose(
-    chair,
-    `A hero listing photograph of ${chair.description} in ${chair.setting}. ` +
-      `Three-quarter front view with the whole item in frame and generous even space around all ` +
-      `four sides — annotation labels will be placed over the surrounding room, so keep the ` +
-      `margins clean and uncluttered. Keep the chair's real condition plainly visible — ` +
-      `${chair.condition}.`,
-  ),
+  subject: chair,
+  brief:
+    `A hero listing photograph of ${chair.description}. The setting is ${chair.setting}. ` +
+    `Three-quarter front view from chest height, level, with the whole item in frame and ` +
+    `generous even space around all four sides — annotation labels will be placed over the ` +
+    `surrounding room, so keep the margins clean and uncluttered. ` +
+    `Keep the chair's real condition plainly visible — ${chair.condition}.`,
   size: '1024x1536',
-  references: chair.references,
 });
-add({
+finished({
   id: 'trust/detail-1',
   path: '/images/trust/detail-1.webp',
   group: 'Trust',
   label: 'Texture proof crop',
-  prompt: compose(chair, ROLES.texture.brief(chair)),
+  subject: chair,
+  brief: ROLES.texture.brief(chair),
   size: '1536x1024',
-  references: chair.references,
 });
-add({
+finished({
   id: 'trust/detail-2',
   path: '/images/trust/detail-2.webp',
   group: 'Trust',
   label: 'Wear proof crop',
-  prompt: compose(chair, ROLES.condition.brief(chair)),
+  subject: chair,
+  brief: ROLES.condition.brief(chair),
   size: '1536x1024',
-  references: chair.references,
 });
 
 // --- pricing/: coverage preview tiles, one per category ---
-(['furniture', 'vehicles', 'tools', 'plants', 'collectibles'] as const).forEach((key, i) => {
-  const s = SUBJECTS[key];
-  add({
+Object.values(SUBJECTS).forEach((s, i) => {
+  finished({
     id: `pricing/tile-${i + 1}`,
     path: `/images/pricing/tile-${i + 1}.webp`,
     group: 'Pricing',
     label: `Coverage tile ${i + 1} (${s.label})`,
-    prompt: compose(s, ROLES.hero.brief(s)),
+    subject: s,
+    brief: ROLES.hero.brief(s),
     size: '1024x1024',
-    references: s.references,
   });
 });
 
 // --- cta/: the fanned set above the dark upload surface ---
 (['context', 'texture', 'hero', 'alt', 'rear'] as const).forEach((r, i) => {
-  add({
+  finished({
     id: `cta/card-${i + 1}`,
     path: `/images/cta/card-${i + 1}.webp`,
     group: 'Final CTA',
     label: `Fan card ${i + 1} (${ROLES[r].label})`,
-    prompt: compose(chair, ROLES[r].brief(chair)),
+    subject: chair,
+    brief: ROLES[r].brief(chair),
     size: '1024x1536',
-    references: chair.references,
   });
 });
 
@@ -419,4 +553,40 @@ export const STUDIO_GROUPS = Array.from(new Set(STUDIO_MANIFEST.map((i) => i.gro
 
 export function studioImageById(id: string): StudioImage | undefined {
   return STUDIO_MANIFEST.find((i) => i.id === id);
+}
+
+/** Public paths of every reference this image needs, real files and chained outputs alike. */
+export function resolveReferences(image: StudioImage): string[] {
+  const chained = image.dependsOn
+    .map((id) => studioImageById(id)?.path)
+    .filter((p): p is string => Boolean(p));
+  return [...image.staticReferences, ...chained];
+}
+
+/**
+ * Orders a batch so an image's dependencies are generated before it. Without this, "generate all
+ * missing" would fire the before photos before the finished shot they are derived from and every
+ * one of them would fail.
+ */
+export function studioBatchOrder(ids: string[]): string[] {
+  const wanted = new Set(ids);
+  const ordered: string[] = [];
+  const placed = new Set<string>();
+
+  const visit = (id: string, seen: Set<string>) => {
+    if (placed.has(id) || seen.has(id)) return;
+    seen.add(id);
+    const image = studioImageById(id);
+    if (!image) return;
+    for (const dep of image.dependsOn) {
+      if (wanted.has(dep)) visit(dep, seen);
+    }
+    if (!placed.has(id)) {
+      placed.add(id);
+      ordered.push(id);
+    }
+  };
+
+  for (const id of ids) visit(id, new Set());
+  return ordered;
 }

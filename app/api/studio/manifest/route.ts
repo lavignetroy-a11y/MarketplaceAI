@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import fs from 'fs/promises';
 import path from 'path';
-import { STUDIO_MANIFEST } from '@/lib/studio/manifest';
+import { resolveReferences, STUDIO_MANIFEST } from '@/lib/studio/manifest';
 
 export const runtime = 'nodejs';
 
@@ -29,7 +29,8 @@ export async function GET() {
         group: image.group,
         label: image.label,
         size: image.size,
-        references: image.references.length,
+        references: resolveReferences(image).length,
+        dependsOn: image.dependsOn,
         prompt: image.prompt,
         exists,
         bytes,
