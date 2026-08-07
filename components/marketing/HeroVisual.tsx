@@ -286,8 +286,9 @@ function Reflection({ card, stage, compact }: { card: FanCard; stage: Stage; com
         // the ones behind it exactly as its card does.
         zIndex: Math.max(1, Math.round(card.z / 10)),
         transform: `rotateY(${card.rotateY}deg)`,
-        maskImage: 'linear-gradient(to bottom, rgba(0,0,0,0.8), transparent 82%)',
-        WebkitMaskImage: 'linear-gradient(to bottom, rgba(0,0,0,0.8), transparent 82%)',
+        // No mask and no opacity here on purpose: both are applied once to the whole layer.
+        // A per-reflection fade tops out below full alpha, so every reflection stays partly
+        // see-through and the one behind shows through it -- the bug this is fixing.
       }}
     >
       <div
@@ -341,7 +342,17 @@ function ReflectionLayer({
     <div
       aria-hidden="true"
       className="pointer-events-none absolute inset-0 opacity-[0.5]"
-      style={{ zIndex: 1, perspective: '1250px', perspectiveOrigin: '42% 38%' }}
+      style={{
+        zIndex: 1,
+        perspective: '1250px',
+        perspectiveOrigin: '42% 38%',
+        // One fade for the whole floor. The cards all stand on the same surface, so the
+        // reflection should weaken with distance across that surface rather than each card
+        // carrying its own gradient -- and a single mask leaves the reflections fully opaque
+        // against each other, which is what makes the front one hide the back one.
+        maskImage: 'linear-gradient(to bottom, #000 0%, #000 62%, rgba(0,0,0,0.55) 72%, rgba(0,0,0,0.22) 82%, transparent 92%)',
+        WebkitMaskImage: 'linear-gradient(to bottom, #000 0%, #000 62%, rgba(0,0,0,0.55) 72%, rgba(0,0,0,0.22) 82%, transparent 92%)',
+      }}
     >
       {cards.map((card) => (
         <Reflection key={`r-${card.src}`} card={card} stage={stage} compact={compact} />
