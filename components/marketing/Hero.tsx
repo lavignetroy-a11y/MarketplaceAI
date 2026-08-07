@@ -27,7 +27,12 @@ export function Hero() {
             {TRUST_BADGE}
           </span>
 
-          <h1 className="mt-6 text-[clamp(2.6rem,5.3vw,4.25rem)] font-[650] leading-[0.98] tracking-[-0.058em] text-marketplace-ink">
+          {/* Sized so "Make your listing" always fits the column on one line. The previous
+              5.3vw needed 487px in a 474px column at 1280 -- a common 100% zoom width -- so it
+              broke to three lines exactly where most people see it. Measured: the string renders
+              at ~7.18x the font size, and the column is ~0.37x the viewport, so anything above
+              ~5.1vw wraps. 4.85vw keeps ~6% of headroom at every width. */}
+          <h1 className="mt-6 text-[clamp(2.35rem,4.85vw,3.9rem)] font-[650] leading-[0.98] tracking-[-0.058em] text-marketplace-ink">
             Make your listing
             <br />
             <span className="bg-violet-blue bg-clip-text text-transparent">worth clicking.</span>

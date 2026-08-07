@@ -161,11 +161,18 @@ const MOBILE_CARDS: FanCard[] = [
 const pctW = (v: number, s: Stage) => `${((v / s.w) * 100).toFixed(4)}%`;
 const pctH = (v: number, s: Stage) => `${((v / s.h) * 100).toFixed(4)}%`;
 
-function Card({ card, stage, compact }: { card: FanCard; stage: Stage; compact?: boolean }) {
+/** Shared by the card and its reflection so the mount matches in both. */
+function frameMetrics(card: FanCard, compact?: boolean) {
   const thick = card.frame === 'thick';
-  const pad = thick ? (compact ? 4 : 5) : compact ? 3 : 4;
-  const outerRadius = thick ? (compact ? 14 : 18) : compact ? 11 : 14;
-  const innerRadius = outerRadius - pad;
+  // Thinner than a mat board -- the reference mount is a hairline, and anything heavier reads as
+  // a white stroke drawn around the photo rather than a physical edge.
+  const pad = thick ? (compact ? 3 : 4) : compact ? 2 : 3;
+  const outerRadius = thick ? (compact ? 13 : 16) : compact ? 10 : 13;
+  return { thick, pad, outerRadius, innerRadius: outerRadius - pad };
+}
+
+function Card({ card, stage, compact }: { card: FanCard; stage: Stage; compact?: boolean }) {
+  const { thick, pad, outerRadius, innerRadius } = frameMetrics(card, compact);
 
   // The frame is padding carrying a gradient rather than a flat border, plus inset edge
   // highlights and shading. That combination -- light catching the top and left edges, the
@@ -248,30 +255,62 @@ function Card({ card, stage, compact }: { card: FanCard; stage: Stage; compact?:
           )}
         </div>
       </div>
+    </div>
+  );
+}
 
-      {/* Mirror reflection on the glossy surface below, fading out with distance. The frame is
-          mirrored along with the photo -- reflecting only the image reads as a floating crop. */}
+/**
+ * The mirrored card on the surface below, as its own positioned element rather than a child of
+ * the card.
+ *
+ * As a child it inherited the card's z-index, so a card standing behind another still painted
+ * its reflection at that card's depth -- and because the cards sit at different heights, a back
+ * card's reflection landed across the face of a front one. A real reflection cannot do that: it
+ * begins where the card meets the surface and everything nearer the viewer occludes it. Giving
+ * every reflection a z-index below every card restores that, and starting it at the card's exact
+ * bottom edge makes the two halt where they meet.
+ */
+function Reflection({ card, stage, compact }: { card: FanCard; stage: Stage; compact?: boolean }) {
+  const { pad, outerRadius, innerRadius } = frameMetrics(card, compact);
+
+  return (
+    <div
+      aria-hidden="true"
+      className="pointer-events-none absolute overflow-hidden opacity-[0.5]"
+      style={{
+        left: pctW(card.left, stage),
+        top: pctH(card.top + card.height, stage),
+        width: pctW(card.width, stage),
+        height: pctH(card.height * 0.4, stage),
+        // Below every card (those run 10-50) but above the floor sheen. Relative order among
+        // reflections still follows the fan so they overlap each other the way the cards do.
+        zIndex: Math.max(1, Math.round(card.z / 10)),
+        transform: `rotateY(${card.rotateY}deg)`,
+        maskImage: 'linear-gradient(to bottom, rgba(0,0,0,0.8), transparent 82%)',
+        WebkitMaskImage: 'linear-gradient(to bottom, rgba(0,0,0,0.8), transparent 82%)',
+      }}
+    >
       <div
-        aria-hidden="true"
-        className="pointer-events-none mt-[2px] overflow-hidden opacity-[0.5]"
         style={{
-          height: '40%',
-          maskImage: 'linear-gradient(to bottom, rgba(0,0,0,0.8), transparent 82%)',
-          WebkitMaskImage: 'linear-gradient(to bottom, rgba(0,0,0,0.8), transparent 82%)',
+          width: '100%',
+          height: '250%', // the clipped window is 40% tall; the mirrored card is full height
+          padding: pad,
+          borderRadius: outerRadius,
+          background: 'linear-gradient(143deg, #ffffff 0%, #fbfcfe 30%, #eceff7 66%, #d6dbe9 100%)',
+          transform: 'scaleY(-1)',
+          // no cast shadow or hard bevel on the reflection -- a mirrored drop shadow reads
+          // as a second physical card rather than a reflection
+          boxShadow: 'inset 0 0 0 1px rgba(12,13,18,0.04)',
         }}
       >
-        <div
-          style={{
-            ...frameStyle,
-            height: '250%', // the clipped window is 40% tall; the mirrored card is full height
-            transform: 'scaleY(-1)',
-            // no cast shadow or hard bevel on the reflection -- a mirrored drop shadow reads
-            // as a second physical card rather than a reflection
-            boxShadow: 'inset 0 0 0 1px rgba(12,13,18,0.04)',
-          }}
-        >
-          {image(true)}
-        </div>
+        <PlaceholderImage
+          src={card.src}
+          alt=""
+          decorative
+          objectPosition={card.objectPosition}
+          className={`h-full w-full ${card.muted ? 'saturate-[0.85]' : ''}`}
+          style={{ borderRadius: innerRadius }}
+        />
       </div>
     </div>
   );
@@ -422,6 +461,10 @@ export function HeroVisual() {
 
         <Floor top="64%" />
 
+        {/* reflections first, all beneath the cards */}
+        {DESKTOP_CARDS.map((card) => (
+          <Reflection key={`r-${card.src}`} card={card} stage={DESKTOP_STAGE} />
+        ))}
         {DESKTOP_CARDS.map((card) => (
           <Card key={card.src} card={card} stage={DESKTOP_STAGE} />
         ))}
@@ -448,6 +491,9 @@ export function HeroVisual() {
       <StageBox size={MOBILE_STAGE} className="lg:hidden">
         <Floor top="62%" />
 
+        {MOBILE_CARDS.map((card) => (
+          <Reflection key={`r-${card.src}`} card={card} stage={MOBILE_STAGE} compact />
+        ))}
         {MOBILE_CARDS.map((card) => (
           <Card key={card.src} card={card} stage={MOBILE_STAGE} compact />
         ))}
