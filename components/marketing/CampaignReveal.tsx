@@ -4,15 +4,26 @@ import { useState } from 'react';
 import { ArrowRight, Eye, Grid2x2, LayoutGrid, ShieldCheck, Sparkles, Star } from 'lucide-react';
 import { Accent, Eyebrow, IconChip, Lede, PhotoCard, SectionTitle, gradientStroke } from './primitives';
 
-const CATEGORIES = ['Furniture', 'Vehicles', 'Tools', 'Plants', 'Collectibles'] as const;
+const CATEGORIES = [
+  { key: 'furniture', label: 'Furniture' },
+  { key: 'vehicles', label: 'Vehicles' },
+  { key: 'tools', label: 'Tools' },
+  { key: 'plants', label: 'Plants' },
+  { key: 'collectibles', label: 'Collectibles' },
+] as const;
 
+type CategoryKey = (typeof CATEGORIES)[number]['key'];
+
+// Shot roles are constant across categories; only the folder changes. Image paths are derived
+// from the active tab so switching categories actually swaps the set rather than just
+// restyling the button.
 const SHOTS = [
-  { key: 'hero', label: 'Hero image', src: '/images/reveal/hero.webp', area: 'hero' },
-  { key: 'alt', label: 'Alternate angle', src: '/images/reveal/alt.webp', area: 'alt' },
-  { key: 'texture', label: 'Texture detail', src: '/images/reveal/texture.webp', area: 'texture' },
-  { key: 'rear', label: 'Rear angle', src: '/images/reveal/rear.webp', area: 'rear' },
-  { key: 'condition', label: 'Condition view', src: '/images/reveal/condition.webp', area: 'condition' },
-  { key: 'context', label: 'Context shot', src: '/images/reveal/context.webp', area: 'context' },
+  { key: 'hero', label: 'Hero image', area: 'hero' },
+  { key: 'alt', label: 'Alternate angle', area: 'alt' },
+  { key: 'texture', label: 'Texture detail', area: 'texture' },
+  { key: 'rear', label: 'Rear angle', area: 'rear' },
+  { key: 'condition', label: 'Condition view', area: 'condition' },
+  { key: 'context', label: 'Context shot', area: 'context' },
 ];
 
 /**
@@ -21,7 +32,7 @@ const SHOTS = [
  * what make the "campaign, not a filter" point land without a paragraph explaining it.
  */
 export function CampaignReveal() {
-  const [category, setCategory] = useState<(typeof CATEGORIES)[number]>('Furniture');
+  const [category, setCategory] = useState<CategoryKey>('furniture');
 
   return (
     <section id="campaign" className="section relative overflow-hidden">
@@ -34,17 +45,18 @@ export function CampaignReveal() {
           >
             {CATEGORIES.map((c) => (
               <button
-                key={c}
+                key={c.key}
                 role="tab"
-                aria-selected={category === c}
-                onClick={() => setCategory(c)}
+                aria-selected={category === c.key}
+                aria-controls="campaign-reveal-set"
+                onClick={() => setCategory(c.key)}
                 className={`rounded-full px-4 py-2 text-[0.875rem] font-medium transition-colors ${
-                  category === c
+                  category === c.key
                     ? 'bg-white text-marketplace-ink shadow-soft'
                     : 'text-marketplace-muted hover:text-marketplace-ink'
                 }`}
               >
-                {c}
+                {c.label}
               </button>
             ))}
           </div>
@@ -73,7 +85,7 @@ export function CampaignReveal() {
                   {[1, 2, 3, 4].map((n) => (
                     <PhotoCard
                       key={n}
-                      src={`/images/reveal/source-${n}.webp`}
+                      src={`/images/reveal/${category}/source-${n}.webp`}
                       alt=""
                       className="aspect-[3/4] flex-1 saturate-[0.85]"
                       radius={10}
@@ -90,6 +102,8 @@ export function CampaignReveal() {
 
           {/* The finished set. Grid areas keep the hero dominant with supporting views around it. */}
           <div
+            id="campaign-reveal-set"
+            role="tabpanel"
             className="grid gap-3"
             style={{
               gridTemplateColumns: 'repeat(3, minmax(0, 1fr))',
@@ -103,7 +117,7 @@ export function CampaignReveal() {
             {SHOTS.map((shot) => (
               <PhotoCard
                 key={shot.key}
-                src={shot.src}
+                src={`/images/reveal/${category}/${shot.key}.webp`}
                 alt={shot.label}
                 className={shot.area === 'hero' ? 'min-h-[280px]' : 'min-h-[135px]'}
                 label={{

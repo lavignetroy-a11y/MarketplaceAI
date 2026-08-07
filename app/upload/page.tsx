@@ -84,8 +84,33 @@ function UploadFlow() {
   const [paying, setPaying] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [campaign, setCampaign] = useState<CampaignState | null>(null);
+  const [restoring, setRestoring] = useState(Boolean(searchParams.get('campaign')));
 
   const isProcessing = campaign !== null && !TERMINAL.includes(campaign.status);
+
+  // Arriving from account history (or a bookmarked link) with ?campaign=<id>: load that set
+  // rather than showing an empty upload form.
+  const campaignParam = searchParams.get('campaign');
+  useEffect(() => {
+    if (!campaignParam) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch(`/api/campaigns/${campaignParam}`);
+        const data = await res.json();
+        if (cancelled) return;
+        if (!res.ok) throw new Error(data.error || 'That set could not be found.');
+        setCampaign(data as CampaignState);
+      } catch (err) {
+        if (!cancelled) setError(err instanceof Error ? err.message : 'That set could not be found.');
+      } finally {
+        if (!cancelled) setRestoring(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [campaignParam]);
 
   useEffect(() => {
     if (!campaign || !isProcessing) return;
@@ -208,7 +233,12 @@ function UploadFlow() {
           }
         />
 
-        {!campaign ? (
+        {restoring ? (
+          <div className="mt-16 flex items-center justify-center gap-3 text-marketplace-muted">
+            <Loader2 className="h-5 w-5 animate-spin" />
+            Loading your set…
+          </div>
+        ) : !campaign ? (
           <form onSubmit={handleSubmit} className="mt-10">
             <h1 className="text-[2rem] font-[650] leading-[1.05] tracking-[-0.04em] text-marketplace-ink">
               Upload your photos

@@ -118,6 +118,7 @@ export async function persistImageResult(
     status: 'done' | 'error';
     isPreview?: boolean;
     watermarked?: boolean;
+    storagePath?: string | null;
     error?: string;
   },
 ): Promise<void> {
@@ -133,6 +134,7 @@ export async function persistImageResult(
         status: result.status,
         is_preview: result.isPreview ?? false,
         watermarked: result.watermarked ?? false,
+        storage_path: result.storagePath ?? null,
         error: result.error ?? null,
       },
       { onConflict: 'campaign_id,sequence_number' },

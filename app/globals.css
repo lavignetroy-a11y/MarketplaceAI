@@ -228,3 +228,46 @@ button.primary:disabled {
   border-radius: 6px;
   font-size: 0.85rem;
 }
+
+@layer components {
+  /* Long-form policy / support copy. Scoped so it can't leak into marketing sections. */
+  .legal-prose h2 {
+    margin-top: 2.5rem;
+    font-size: 1.25rem;
+    font-weight: 620;
+    letter-spacing: -0.025em;
+    color: #0c0d12;
+  }
+
+  .legal-prose h2:first-child {
+    margin-top: 0;
+  }
+
+  .legal-prose p,
+  .legal-prose li {
+    margin-top: 0.875rem;
+    font-size: 0.9375rem;
+    line-height: 1.7;
+    color: #626a7d;
+  }
+
+  .legal-prose ul {
+    margin-top: 0.5rem;
+    padding-left: 1.25rem;
+    list-style: disc;
+  }
+
+  .legal-prose li {
+    margin-top: 0.5rem;
+  }
+
+  .legal-prose strong {
+    font-weight: 600;
+    color: #0c0d12;
+  }
+
+  .legal-prose a {
+    color: #7a5cff;
+    text-decoration: underline;
+  }
+}

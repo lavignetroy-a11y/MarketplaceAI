@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getJob } from '@/lib/campaign/store';
-import { CUSTOMER_STATUS_LABELS } from '@/lib/campaign/types';
+import { loadPersistedCampaign } from '@/lib/campaign/storage';
+import { CUSTOMER_STATUS_LABELS, type CampaignStatus } from '@/lib/campaign/types';
 
 export const runtime = 'nodejs';
 
@@ -9,7 +10,29 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
   const job = getJob(id);
 
   if (!job) {
-    return NextResponse.json({ error: 'Campaign not found.' }, { status: 404 });
+    // Not in this process -- a later visit, another device, or a restart. Rebuild it from the
+    // database so a shared or bookmarked campaign link keeps working.
+    const persisted = await loadPersistedCampaign(id);
+    if (!persisted) {
+      return NextResponse.json({ error: 'Campaign not found.' }, { status: 404 });
+    }
+    return NextResponse.json({
+      id: persisted.id,
+      status: persisted.status,
+      statusLabel:
+        CUSTOMER_STATUS_LABELS[persisted.status as CampaignStatus] ?? persisted.status,
+      statusMessage: persisted.statusMessage ?? undefined,
+      requestedCount: persisted.requestedCount,
+      paid: persisted.paid,
+      priceCents: persisted.priceCents,
+      productSummary: null,
+      minimumAdditionalEvidenceNeeded: [],
+      results: persisted.results,
+      listingTitle: persisted.listingTitle,
+      listingDescription: persisted.listingDescription,
+      error: persisted.error,
+      restored: true,
+    });
   }
 
   // The payment gate lives here, not in the UI: unpaid campaigns only ever receive the

@@ -8,6 +8,7 @@ import {
 } from './generateImages';
 import { getJob, persistImageResult, setStatus, updateJob } from './store';
 import { applyPreviewWatermark, bufferToDataUrl, dataUrlToBuffer } from './watermark';
+import { storeCampaignImage } from './storage';
 import type { GeneratedShotResult, ShotOrientation, ShotPlan, SourcePhoto } from './types';
 
 // The pipeline runs in two phases around the payment gate:
@@ -145,6 +146,13 @@ export async function runPreview(jobId: string): Promise<void> {
       listingTitle: analysis.listingTitle,
       listingDescription: analysis.listingDescription,
     });
+    const previewPath = await storeCampaignImage(
+      jobId,
+      job.userId,
+      heroShot.sequenceNumber,
+      `${heroShot.imageRole}-preview`,
+      watermarked,
+    );
     void persistImageResult(jobId, {
       sequenceNumber: heroShot.sequenceNumber,
       imageRole: heroShot.imageRole,
@@ -152,6 +160,7 @@ export async function runPreview(jobId: string): Promise<void> {
       status: 'done',
       isPreview: true,
       watermarked: true,
+      storagePath: previewPath,
     });
 
     setStatus(jobId, 'preview_ready');
@@ -200,22 +209,32 @@ export async function runFullCampaign(jobId: string): Promise<void> {
         .map((shot) => generateOneShot(client, shot, job.sources, heroReference, heroOrientation)),
     );
 
-    for (const r of remaining) {
-      void persistImageResult(jobId, {
-        sequenceNumber: r.sequenceNumber,
-        imageRole: r.imageRole,
-        imageJob: r.imageJob,
-        status: r.status,
-        error: r.error,
-      });
-    }
-
     // The hero is no longer a preview -- payment releases the unwatermarked file.
     const releasedHero: GeneratedShotResult = {
       ...heroResult,
       previewImage: undefined,
       isPreview: false,
     };
+
+    await Promise.all(
+      [releasedHero, ...remaining].map(async (r) => {
+        const path =
+          r.status === 'done' && r.image
+            ? await storeCampaignImage(jobId, job.userId, r.sequenceNumber, r.imageRole, r.image)
+            : null;
+        await persistImageResult(jobId, {
+          sequenceNumber: r.sequenceNumber,
+          imageRole: r.imageRole,
+          imageJob: r.imageJob,
+          status: r.status,
+          isPreview: false,
+          watermarked: false,
+          storagePath: path,
+          error: r.error,
+        });
+      }),
+    );
+
     const results = [releasedHero, ...remaining].sort(
       (a, b) => a.sequenceNumber - b.sequenceNumber,
     );

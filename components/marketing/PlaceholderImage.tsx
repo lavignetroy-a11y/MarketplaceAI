@@ -23,17 +23,23 @@ export function PlaceholderImage({
   objectPosition?: string;
   style?: React.CSSProperties;
 }) {
-  const [failed, setFailed] = useState(false);
+  const [failedSrc, setFailedSrc] = useState<string | null>(null);
   const imgRef = useRef<HTMLImageElement>(null);
+
+  // Track failure against the specific src rather than a bare boolean. React reuses this
+  // component instance when a parent swaps src (category tabs, a replaced photo), and a
+  // sticky boolean would leave the placeholder showing forever even once the new image loads.
+  const failed = failedSrc === src;
 
   useEffect(() => {
     // For an instant (localhost) 404, the native `error` event can fire before hydration
-    // attaches the onError listener, so it's missed. Catch that case explicitly on mount.
+    // attaches the onError listener, so it's missed. Catch that case explicitly on mount and
+    // whenever src changes.
     const el = imgRef.current;
     if (el && el.complete && el.naturalWidth === 0) {
-      setFailed(true);
+      setFailedSrc(el.currentSrc || src);
     }
-  }, []);
+  }, [src]);
 
   if (failed) {
     return (
@@ -59,7 +65,7 @@ export function PlaceholderImage({
       alt={alt}
       className={`object-cover ${className}`}
       style={objectPosition ? { ...style, objectPosition } : style}
-      onError={() => setFailed(true)}
+      onError={() => setFailedSrc(src)}
     />
   );
 }
