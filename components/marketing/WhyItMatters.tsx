@@ -44,25 +44,23 @@ export function WhyItMatters() {
   return (
     <section id="why" className="section relative overflow-hidden bg-marketplace-canvas/40">
       <div className="page-shell mx-auto max-w-page">
-        <div className="max-w-[620px]">
+        <div className="mx-auto max-w-[680px] text-center">
           <Eyebrow>Why better photos matter</Eyebrow>
-          <SectionTitle className="mt-5">
+          <SectionTitle className="mt-4">
             A better listing works before you answer a <Accent>single message.</Accent>
           </SectionTitle>
-          <Lede className="mt-6 max-w-[540px]">
+          <Lede className="mx-auto mt-5 max-w-[560px]">
             Buyers notice the photos first. Stronger presentation helps your listing stand out,
             feel more trustworthy, and look more valuable — so you attract the right buyers with
             less back and forth.
           </Lede>
-
-
-        <div className="mt-7 flex justify-center">
-          <VariantSwitcher variant={variant} step={step} label="item" />
-        </div>
+          <div className="mt-6 flex justify-center">
+            <VariantSwitcher variant={variant} step={step} label="item" />
+          </div>
         </div>
 
-        <div className="mt-10 grid items-center gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,0.95fr)_minmax(0,1fr)]">
-          <div className="flex flex-col gap-5">
+        <div className="mx-auto mt-9 grid max-w-[1120px] items-stretch gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(0,0.86fr)_minmax(0,1fr)] lg:gap-7">
+          <div className="flex flex-col justify-between gap-5 py-1">
             {LEFT.map(({ icon: Icon, title, body, imgSlot }) => (
               <BenefitCard
                 key={title}
@@ -76,7 +74,7 @@ export function WhyItMatters() {
 
           <ListingCard variant={variant} />
 
-          <div className="flex flex-col gap-5">
+          <div className="flex flex-col justify-between gap-5 py-1">
             {RIGHT.map(({ icon: Icon, title, body, imgSlot }) => (
               <BenefitCard
                 key={title}
@@ -130,7 +128,7 @@ function BenefitCard({
       <PhotoCard
         src={img}
         alt=""
-        className="hidden h-[92px] w-[112px] shrink-0 sm:block"
+        className="hidden h-[78px] w-[96px] shrink-0 sm:block"
         radius={14}
         pad={4}
       />
@@ -141,7 +139,7 @@ function BenefitCard({
 /** A marketplace listing as a buyer would actually see it. */
 function ListingCard({ variant }: { variant: number }) {
   return (
-    <div className="mx-auto w-full max-w-[380px] overflow-hidden rounded-brand-lg border border-marketplace-line/60 bg-white shadow-lift">
+    <div className="mx-auto w-full max-w-[330px] overflow-hidden rounded-brand-lg border border-marketplace-line/60 bg-white shadow-lift">
       <div className="relative">
         <PhotoCard
           src={`/images/why/v${variant}/listing-hero.webp`}

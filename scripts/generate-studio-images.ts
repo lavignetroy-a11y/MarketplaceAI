@@ -54,13 +54,40 @@ function parseArgs(argv: string[]): Args {
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
-/** 429s and 5xx are transient; a bad prompt or a missing dependency is not. */
+const NETWORK_CODES = new Set([
+  'ECONNRESET',
+  'ETIMEDOUT',
+  'ENOTFOUND',
+  'ECONNREFUSED',
+  'EPIPE',
+  'EAI_AGAIN',
+  'UND_ERR_SOCKET',
+  'UND_ERR_CONNECT_TIMEOUT',
+  'UND_ERR_HEADERS_TIMEOUT',
+]);
+
+/**
+ * 429s, 5xx and dropped connections are transient; a bad prompt or a missing dependency is not.
+ *
+ * The connection cases need care. The OpenAI SDK wraps a dropped socket in an APIConnectionError
+ * whose message is just "Connection error." -- it carries no `status` and no top-level `code`,
+ * because the real errno is buried on `cause`. Checking only status and code meant a brief
+ * network blip was classified as permanent, and a run lost every remaining image in seconds
+ * instead of waiting it out.
+ */
 function isRetryable(err: unknown): boolean {
-  const status = (err as { status?: number })?.status;
-  if (status === 429) return true;
-  if (typeof status === 'number' && status >= 500) return true;
-  const code = (err as { code?: string })?.code;
-  return code === 'ECONNRESET' || code === 'ETIMEDOUT' || code === 'ENOTFOUND';
+  const e = err as { status?: number; code?: string; name?: string; message?: string; cause?: { code?: string } };
+
+  if (e?.status === 429) return true;
+  if (typeof e?.status === 'number' && e.status >= 500) return true;
+
+  if (e?.name === 'APIConnectionError' || e?.name === 'APIConnectionTimeoutError') return true;
+  if (typeof e?.message === 'string' && /connection error|socket|network|timeout|fetch failed|terminated/i.test(e.message)) {
+    return true;
+  }
+
+  if (e?.code && NETWORK_CODES.has(e.code)) return true;
+  return Boolean(e?.cause?.code && NETWORK_CODES.has(e.cause.code));
 }
 
 async function main() {

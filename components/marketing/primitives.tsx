@@ -25,7 +25,7 @@ export function SectionTitle({
 }) {
   return (
     <h2
-      className={`text-[clamp(2.1rem,3.6vw,3.25rem)] font-[620] leading-[1.02] tracking-[-0.042em] [text-wrap:balance] ${
+      className={`text-[clamp(1.85rem,2.8vw,2.7rem)] font-[620] leading-[1.06] tracking-[-0.038em] [text-wrap:balance] ${
         dark ? 'text-white' : 'text-marketplace-ink'
       } ${className}`}
     >
@@ -49,7 +49,7 @@ export function Lede({
 }) {
   return (
     <p
-      className={`text-[1.0625rem] leading-[1.62] tracking-[-0.012em] ${
+      className={`text-[clamp(0.9688rem,1.05vw,1.0625rem)] leading-[1.6] tracking-[-0.012em] ${
         dark ? 'text-white/65' : 'text-marketplace-muted'
       } ${className}`}
     >
