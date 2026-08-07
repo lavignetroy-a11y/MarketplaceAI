@@ -1,0 +1,1011 @@
+MARKETPLACE / AI — RECONCILED WEBSITE BUILD MASTER PROMPT
+VERSION 2 — SECTION-IMAGE SOURCE-OF-TRUTH EDITION
+
+ROLE
+
+Act as a world-class digital product team composed of:
+- Creative director
+- Brand designer
+- Senior UX designer
+- Senior UI designer
+- Art director
+- Motion designer
+- Conversion strategist
+- Front-end engineer
+- Accessibility specialist
+- Performance engineer
+- Quality-assurance lead
+
+Build the complete Marketplace / AI website as a polished, production-quality consumer AI experience.
+
+The site must feel expensive, exceptionally simple, visually confident, and deliberately art-directed. It must not look like a generic template or an interchangeable SaaS website.
+
+CRITICAL SOURCE-OF-TRUTH RULE
+
+The approved section images created for this project are the primary visual source of truth.
+
+When this prompt conflicts with an approved section image, follow the approved section image.
+
+Do not “correct” the approved imagery toward a different design philosophy. Recreate the visual language, hierarchy, composition, spacing, surface treatment, image presentation, and overall emotional effect demonstrated in those images.
+
+The approved section images intentionally use:
+- A luminous pearl-white and pale-cool-gray canvas
+- Violet-to-blue accent treatments
+- Select gradient-highlighted words
+- Soft white elevated surfaces
+- Rounded cards and image frames
+- Subtle glass-like navigation and control surfaces
+- Fine orbital lines and restrained glow
+- Large product imagery
+- Carefully composed interface callouts
+- Alternating light and dark sections
+- A premium futuristic consumer-AI tone
+
+These are approved, intentional brand choices for Marketplace / AI.
+
+Therefore, generic “never use purple,” “never use gradients,” “never use glassmorphism,” “never use rounded cards,” or “never center content” rules do not apply when they would conflict with the approved section imagery.
+
+The rule is not “avoid every common AI visual device.” The rule is:
+Use the approved devices with discipline, hierarchy, consistency, and excellent execution so the result feels authored rather than generated.
+
+PROJECT
+
+Project name:
+Marketplace / AI
+
+Product:
+A premium web application that transforms ordinary seller photos into a complete, coordinated marketplace listing image campaign.
+
+Primary customer:
+Casual marketplace sellers, furniture and home-goods resellers, vehicle and equipment sellers, plant sellers, collectible sellers, and small resale businesses.
+
+Core customer problem:
+Marketplace listings are often held back by cluttered backgrounds, poor lighting, weak angles, inconsistent imagery, and incomplete visual coverage.
+
+Primary promise:
+Upload the photos you already have and receive a polished, coordinated image campaign designed to help the listing attract more attention, build buyer confidence, and present the item more effectively.
+
+Primary conversion goal:
+Upload listing photos.
+
+Secondary conversion goal:
+View transformations or example campaigns.
+
+Customer flow:
+1. Upload original photos.
+2. Choose exactly 4, 6, 8, or 10 final images.
+3. Pay.
+4. Watch progress.
+5. Receive the complete campaign in listing order.
+
+The customer must never:
+- Write prompts
+- Choose individual shots
+- Approve intermediate outputs
+- Operate multiple tabs
+- See raw JSON
+- See model names
+- See internal generation terminology
+
+BRAND POSITIONING
+
+Marketplace / AI should feel:
+- Premium
+- Precise
+- Modern
+- Calm
+- Trustworthy
+- Visually intelligent
+- Consumer-friendly
+- Fast
+- Technically sophisticated beneath the surface
+- Extremely easy to use
+
+The site should communicate:
+- Better presentation can help a listing attract more attention.
+- Cleaner, more complete images can build buyer confidence.
+- Stronger presentation can support higher perceived value.
+- Better visual coverage can reduce uncertainty and basic buyer questions.
+- The product creates a complete coordinated campaign, not one isolated edited image.
+- The real item and visible condition remain the truth.
+
+Do not guarantee:
+- A specific increase in sale price
+- A specific reduction in time to sale
+- A specific number of views or messages
+- Perfect image fidelity
+- Guaranteed conversion outcomes
+
+Use credible language such as:
+- Designed to attract more attention
+- Can help your listing stand out
+- Helps buyers understand what they are seeing
+- Supports a stronger first impression
+- Makes the listing easier to evaluate
+- Better presented, still the same item
+
+VISUAL SYSTEM
+
+Primary visual direction:
+Luminous precision with premium product imagery.
+
+The site should combine:
+- Bright pearl-white surfaces
+- Cool, airy negative space
+- Soft shadows
+- Violet and electric-blue accents
+- Large black typography
+- Elegant image layering
+- Highly polished product photography
+- Fine orbital or connective lines
+- Rounded image cards
+- Minimal but meaningful interface labels
+- Strong section-to-section rhythm
+- Occasional dark cinematic sections for contrast
+
+Color direction:
+- Primary background: pearl white / cool white
+- Secondary background: pale cool gray
+- Primary text: near black
+- Secondary text: cool gray
+- Brand accent: violet
+- Secondary accent: electric blue
+- Dark section background: midnight navy or near-black
+- Dark section text: soft white
+- Borders: very light cool gray
+- Success/trust accent: restrained blue-violet or cool neutral
+
+Approved accent behavior:
+- Violet-to-blue gradient may be used for select headline words, primary CTA surfaces, active controls, and small interface accents.
+- Do not apply gradients everywhere.
+- Do not use multiple unrelated gradients.
+- Keep the same violet-to-blue family throughout the entire site.
+
+Suggested brand tokens:
+- Ink: #0C0D12
+- Text secondary: #626A7D
+- White: #FFFFFF
+- Pearl: #F7F8FC
+- Cool canvas: #EEF1F8
+- Border: #DFE4EF
+- Violet: #7A5CFF
+- Blue: #4D82FF
+- Midnight: #090B18
+- Midnight surface: #111426
+
+TYPOGRAPHY
+
+Primary font:
+Geist, or the closest available modern grotesk matching the approved hero.
+
+Use it for:
+- Navigation
+- Hero headline
+- Section headlines
+- Body copy
+- Buttons
+- UI labels
+- Forms
+- Pricing
+- Application screens
+
+Optional editorial font:
+Newsreader may be used sparingly for selected dark proof, pricing, or transformation sections if it visually matches the approved section image. Do not force a serif onto sections whose approved image uses sans-serif.
+
+Typography hierarchy:
+- Hero headline: Geist, 650–700, extremely tight line-height, large scale
+- Major section headline: Geist, 600–650
+- Editorial headline where approved: Newsreader, 500
+- Body: Geist, 400
+- Navigation and buttons: Geist, 500–600
+- Eyebrows: Geist, 600, uppercase, tracked
+- Small interface labels: Geist, 500
+- Data labels: Geist Mono only when data is real
+
+Hero headline example:
+Make your
+listing look
+worth
+clicking.
+
+Use deliberate line breaks.
+
+The word “clicking.” may use the approved violet-to-blue gradient.
+
+Typography must remain:
+- High contrast
+- Carefully wrapped
+- Spacious
+- Responsive
+- Easy to scan
+- Never tiny or overly muted
+
+NAVIGATION
+
+Use a floating rounded navigation bar matching the approved hero image.
+
+Desktop:
+- Logo at left
+- How it works
+- Examples
+- Pricing
+- Why it works
+- Sign in
+- Primary button: Upload your photos
+
+Navigation behavior:
+- Wide white or translucent-white surface
+- Very subtle blur or soft elevation
+- Generous horizontal padding
+- Rounded capsule-like outer frame
+- Black primary CTA
+- Compact when sticky
+- Smooth, restrained transition on scroll
+
+Mobile:
+- Logo
+- Upload CTA or compact primary action
+- Menu trigger
+- Functional accessible menu
+- No crowded links
+- No horizontal overflow
+
+PAGE ARCHITECTURE
+
+Build the landing page in this exact narrative order:
+
+1. Hero
+2. Marketplace feed / attention
+3. Benefits / why better photos matter
+4. How it works
+5. Full campaign reveal
+6. Trust / better presented, still the same item
+7. Categories / what you can sell
+8. Examples / transformations / proof
+9. Pricing
+10. FAQ / objection handling
+11. Final CTA
+12. Footer
+
+Each section must visually differ from the previous section.
+
+Do not repeat “text on the left, images on the right” down the page.
+
+The approved section images demonstrate the required variety:
+- Asymmetrical hero
+- Feed simulation
+- Benefit composition with a central listing card and surrounding benefit panels
+- Three-step horizontal process
+- Large campaign mosaic
+- Trust inspection layout
+- Category gallery
+- Dark proof section
+- Clean pricing grid
+- Dark cinematic final CTA
+
+SECTION 1 — HERO
+
+Use the approved hero image as the exact visual direction.
+
+Headline:
+Make your listing look worth clicking.
+
+Supporting copy:
+Turn the photos you already have into polished marketplace images that attract more buyers, build confidence, and help your item stand out.
+
+Primary CTA:
+Upload your photos
+
+Secondary CTA:
+See transformations
+
+Visual:
+- Show one ordinary seller photo entering from the left.
+- Show the strongest polished hero image largest in the center.
+- Show a fan of supporting campaign images behind and beside it.
+- Images should depict the same item.
+- Use dimensional layering and soft elevation.
+- Include restrained interface callouts such as:
+  - Your original photos
+  - Cleaner first impression
+  - More buyer confidence
+  - A complete listing set
+- Do not use internal product terms such as APPROVED_HERO.
+
+Support strip:
+- Stand out faster
+- Look more valuable
+- Build buyer trust
+- No prompt work
+
+These are benefit messages, not unsupported performance guarantees.
+
+The hero must communicate within seconds:
+- What the product does
+- Why it matters
+- What to do next
+
+SECTION 2 — MARKETPLACE FEED / ATTENTION
+
+Purpose:
+Demonstrate that better images improve first-impression quality in a crowded marketplace feed.
+
+Composition:
+- Use a realistic marketplace-style feed.
+- Show several ordinary listing cards.
+- Make one upgraded listing visually stand out.
+- Use a controlled before/after or scroll transformation.
+- Avoid fabricated platform branding.
+- Avoid fake statistics.
+- Any views, saves, or message indicators must be clearly illustrative or omitted.
+
+Headline:
+What gets noticed gets clicked.
+
+Supporting copy:
+Buyers see the photo before they read the description. Stronger presentation gives your listing a better chance to stop the scroll.
+
+This section should feel more interface-like and denser than the hero.
+
+SECTION 3 — BENEFITS / WHY BETTER PHOTOS MATTER
+
+Use the approved benefits image as the visual source of truth.
+
+Headline:
+A better listing works before you answer a single message.
+
+Composition:
+- Large centered marketplace listing card.
+- Supporting benefit panels arranged around it.
+- Product imagery remains prominent.
+- Use a different composition from the hero.
+- Keep the background luminous and clean.
+
+Benefit messages:
+- More attention
+- Higher perceived value
+- More buyer confidence
+- A smoother sale
+
+Approved explanation style:
+- Stronger visuals help stop the scroll.
+- Cleaner presentation can make an item feel more cared for.
+- Clear angles and details help buyers understand what they are getting.
+- Better coverage can reduce basic questions and attract more serious interest.
+
+Do not add fabricated percentages or numerical claims.
+
+SECTION 4 — HOW IT WORKS
+
+Use the approved three-step image as the source of truth.
+
+Headline:
+From camera roll to ready to post.
+
+Three true steps:
+1. Upload what you have
+2. Choose your campaign
+3. Receive the complete set
+
+Visual:
+- Three horizontally connected panels on desktop.
+- Step 1 shows ordinary phone images and an upload area.
+- Step 2 shows 4, 6, 8, and 10 package choices.
+- Step 3 shows a finished coordinated gallery.
+- Use real sequence numbers because the process is genuinely sequential.
+- Include one strong CTA below.
+
+Supporting reassurance:
+- No editing experience needed
+- No prompt writing
+- Just upload and go
+
+Mobile:
+- Stack vertically.
+- Preserve the sequence.
+- Keep all controls large enough to tap.
+- Simplify the image gallery.
+
+SECTION 5 — FULL CAMPAIGN REVEAL
+
+Use the approved campaign-reveal image as the source of truth.
+
+Headline:
+Not one edited photo.
+The full visual story.
+
+Composition:
+- Source photos grouped compactly at left or upper-left.
+- Arrow or transformation path.
+- Large finished hero.
+- Supporting image mosaic around it.
+- Category switcher across the top.
+- Furniture, Vehicles, Tools, Plants, Collectibles.
+
+Campaign roles may be labeled in customer-friendly language:
+- Hero image
+- Alternate angle
+- Texture detail
+- Rear angle
+- Condition view
+- Context shot
+
+Do not expose internal generation modes.
+
+The visual must make the core differentiation obvious:
+One upload becomes an entire coordinated campaign.
+
+SECTION 6 — TRUST / BETTER PRESENTED, STILL THE SAME ITEM
+
+Use the approved trust image as the source of truth.
+
+Headline:
+Better presented,
+still the same item.
+
+Purpose:
+Explain that the app improves presentation without inventing, repairing, or disguising the item.
+
+Composition:
+- Centered heading.
+- Large central product image.
+- Inspector-style callouts around the actual item.
+- Close-up crops showing texture, seams, condition, and material.
+- Supporting trust cards below.
+- This section may use a light inspection-lab composition or a darker contrasting treatment, depending on the approved reference.
+
+Trust messages:
+- Condition stays visible
+- No unsupported details
+- Private uploads
+- No prompt work
+
+Callouts:
+- Real condition stays visible
+- Actual shape and materials preserved
+- No fake accessories
+- No invented details
+
+Use plain customer language.
+
+Do not mention:
+- Attachment order
+- Scene locks
+- Compiler contracts
+- Original-setting contamination
+- Internal AI workflow
+
+SECTION 7 — CATEGORIES / WHAT YOU CAN SELL
+
+Use the approved category-grid image as the source of truth.
+
+Headline:
+Made for what you sell.
+
+Supporting copy:
+From everyday items to higher-value pieces, Marketplace / AI creates a coordinated listing campaign tailored to the item and category.
+
+Composition:
+- Large category tab row.
+- Image-led gallery.
+- Multiple card sizes.
+- Product-specific imagery.
+- Light background.
+- Minimal captions.
+
+Categories:
+- Furniture and home goods
+- Vehicles
+- Tools and equipment
+- Plants and garden
+- Electronics
+- Collectibles
+- Bundles and sets
+- Other physical listings
+
+Each category should appear as a coordinated mini-campaign, not a generic stock image.
+
+SECTION 8 — EXAMPLES / TRANSFORMATIONS / PROOF
+
+Use the approved dark examples section as the source of truth.
+
+Headline:
+See what the same item
+can look like online.
+
+Supporting copy:
+Original seller photos in. A polished, coordinated campaign out.
+
+Composition:
+- Dark midnight background.
+- Category tabs.
+- Large before-to-campaign comparison.
+- Smaller transformation examples beneath.
+- Real product photography.
+- Bright finished campaign images provide the contrast.
+- Use violet and blue accents sparingly.
+
+Show:
+- Original seller photos
+- Finished campaign
+- Item category
+- Source photo count
+- Campaign size
+- Completion status only if real
+
+Do not invent:
+- Customer names
+- Testimonials
+- Sale price changes
+- Time-to-sale results
+- View counts
+- Message counts
+- Ratings
+
+Until real proof exists, label these as example campaigns or demonstrations.
+
+SECTION 9 — PRICING
+
+Use the approved pricing section as the source of truth.
+
+Headline:
+Choose the campaign
+that fits your listing.
+
+Supporting copy:
+Whether you need a quick refresh or full visual coverage, pick the package that matches what you are selling.
+
+Subline:
+No subscription. Upload first, then choose your package.
+
+Packages:
+- 4 images — Quick Refresh
+- 6 images — Complete Listing
+- 8 images — Detailed Campaign
+- 10 images — Full Coverage
+
+Important:
+Final prices remain configurable and must not be hard-coded until approved.
+
+Pricing composition:
+- Four clear package cards.
+- One recommended package may receive a restrained “Most popular” treatment.
+- Use violet-blue active state consistent with the approved image.
+- Do not use manipulative scale, excessive glow, or fake discounts.
+- Show meaningful differences only.
+- Make the CTA clear.
+
+Suggested package descriptions:
+4 images:
+For simple listings that need a stronger first impression.
+
+6 images:
+For most furniture, household items, and everyday sales.
+
+8 images:
+For higher-value items where angles, details, and condition matter.
+
+10 images:
+For vehicles, equipment, sets, and high-consideration purchases.
+
+Trust strip:
+- One-time purchase
+- Works with phone photos
+- Private uploads
+- No editing or prompt writing
+
+SECTION 10 — FAQ
+
+Create a quieter transition after pricing.
+
+Do not use a heavy card grid.
+
+Use:
+- Strong left-aligned heading
+- Clean accordion
+- Generous spacing
+- Clear hover and focus states
+- Straightforward answers
+
+Questions:
+- Will the finished images still show the real condition?
+- Will the app change or invent parts of the item?
+- Can I upload photos from my phone?
+- What types of items are supported?
+- How many source photos should I upload?
+- How long does the process take?
+- Can I use the images on Facebook Marketplace, eBay, Craigslist, or OfferUp?
+- Are my photos private?
+- What happens if my photos do not show enough information?
+- What happens if generation fails?
+
+Do not promise exact completion times until measured.
+
+SECTION 11 — FINAL CTA
+
+Use the approved dark final-CTA image as the source of truth.
+
+Headline:
+Your next buyer will
+see the photos first.
+
+Supporting copy:
+Start with the pictures you already have. Marketplace / AI turns them into a polished listing campaign designed to attract attention, build confidence, and help your item stand out.
+
+Composition:
+- Dark midnight background.
+- Large centered headline.
+- Finished campaign cards fanned above an upload surface.
+- Small original photos appear entering the upload surface.
+- Violet-blue lighting and accents.
+- One dominant primary CTA.
+- One understated secondary CTA.
+- Trust line below.
+
+Primary CTA:
+Upload your listing photos
+
+Secondary CTA:
+See example campaigns
+
+Trust line:
+- Works with phone photos
+- Private uploads
+- No editing experience required
+- No prompt writing
+
+This is the page’s most cinematic moment, but it must remain legible and conversion-focused.
+
+SECTION 12 — FOOTER
+
+Keep the footer refined and useful.
+
+Include:
+- Marketplace / AI wordmark
+- How it works
+- Examples
+- Pricing
+- FAQ
+- Privacy
+- Terms
+- Refund policy
+- Acceptable use
+- Contact or support
+- Copyright
+
+Do not use an oversized multi-column corporate footer.
+
+COMPONENT SYSTEM
+
+Buttons:
+- One consistent primary style
+- Black primary CTA on light backgrounds
+- Violet-blue gradient CTA permitted in selected conversion moments matching the approved imagery
+- White or outlined secondary CTA
+- 48px minimum height
+- Clear hover, active, disabled, loading, success, and focus states
+- Do not make every control a pill
+
+Cards:
+- Use rounded white surfaces when they improve comprehension
+- Vary card scale and hierarchy
+- Use soft shadows sparingly
+- Use thin cool-gray borders
+- Do not place every text block in a card
+- Image cards may be more dimensional than informational cards
+
+Image frames:
+- Rounded corners
+- Controlled shadows
+- Consistent campaign imagery
+- Crisp crops
+- Correct subject proportions
+- No stretched screenshots
+- No inconsistent lighting between coordinated campaign images
+
+Labels and callouts:
+- Use sparingly
+- Small white or pale surfaces
+- Cool-gray text
+- Violet accent line or dot when needed
+- Only describe real benefits or image roles
+- Avoid badge clutter
+
+Forms:
+- Calm, clear, and direct
+- Visible labels
+- Inline validation
+- Preserve user input
+- Specific errors
+- Upload progress
+- Reorder and delete controls
+- Large touch targets
+- Mobile camera picker support
+
+MOTION
+
+Motion should reinforce the product story.
+
+Hero:
+- Original image enters.
+- Finished hero moves forward.
+- Supporting campaign images fan outward.
+- Motion stops.
+
+Marketplace feed:
+- One ordinary listing transforms into the upgraded version as it enters the focus area.
+
+How it works:
+- Step progression highlights as the user scrolls.
+- Do not animate all panels independently.
+
+Campaign reveal:
+- Source photos contract or move aside.
+- Full campaign mosaic expands.
+
+Examples:
+- Category transitions should be quick and restrained.
+- Before-and-after interaction may use a slider or controlled reveal.
+
+Final CTA:
+- Campaign cards rise subtly from the upload surface.
+- No continuous floating.
+
+Timing:
+- Micro-interactions: 140–220ms
+- Component transitions: 200–320ms
+- Major reveals: 450–700ms
+- Use smooth, premium easing
+- No bounce
+- Respect prefers-reduced-motion
+- All content must remain understandable without animation
+
+RESPONSIVE BEHAVIOR
+
+Test:
+- 375px
+- 768px
+- 1024px
+- 1440px
+
+Mobile is not a compressed desktop page.
+
+Hero mobile:
+- Headline first
+- Supporting copy
+- Primary CTA
+- Secondary CTA
+- Simplified three-card visual
+- Trust line
+- No complex six-card fan that becomes unreadable
+
+Benefits mobile:
+- Central listing card
+- Benefits become stacked editorial rows
+- Avoid four tiny cards
+
+How-it-works mobile:
+- Vertical sequence
+- One step per viewport rhythm
+- Large upload and package controls
+
+Campaign reveal mobile:
+- Hero first
+- Supporting images in a swipeable or stacked gallery
+- Source photos compact
+- No illegible mosaic
+
+Trust mobile:
+- Product image
+- Two or three most important callouts
+- Detail crops below
+- Trust points stacked
+
+Categories mobile:
+- Horizontally scrollable category tabs if needed
+- Two-column image grid or one dominant card plus smaller cards
+
+Examples mobile:
+- One case study at a time
+- Before and after stacked
+- Category tabs remain usable
+- No tiny multi-example grid
+
+Pricing mobile:
+- One card per row
+- Recommended package clearly labeled
+- Feature copy concise
+- CTA full width
+
+Final CTA mobile:
+- Headline
+- Simplified campaign stack
+- Upload button
+- Trust line
+- Remove nonessential decorative cards
+
+ACCESSIBILITY
+
+Required:
+- Semantic HTML
+- Logical heading order
+- Keyboard navigation
+- Visible focus states
+- WCAG-oriented contrast
+- Alt text for meaningful images
+- Decorative imagery hidden from assistive technology
+- Form labels
+- Screen-reader upload and progress status
+- No status communicated only by color
+- 44px minimum touch targets
+- Reduced-motion support
+- No keyboard traps
+- Accessible accordion behavior
+- Accessible tabs
+- Accessible before-and-after control
+
+PERFORMANCE
+
+Target:
+- Fast initial page render
+- Stable layout
+- Optimized responsive images
+- Modern image formats
+- Lazy loading below the fold
+- Preload only critical hero assets
+- Efficient font loading
+- Minimal JavaScript
+- No heavy animation framework unless truly necessary
+- No autoplay video on mobile
+- No public caching of private customer media
+
+Use:
+- Next.js
+- TypeScript strict mode
+- Tailwind CSS
+- Supabase
+- Inngest
+- Stripe
+- Vercel
+- Sentry
+- PostHog
+
+Keep provider models and prices configurable.
+
+APPLICATION EXPERIENCE
+
+The marketing visual system must extend into:
+- Upload
+- Package selection
+- Checkout
+- Processing
+- Results
+- Dashboard
+- Settings
+- Admin
+- Errors
+- Empty states
+- Evidence requests
+- Completion screens
+
+The application should be calmer than the marketing page but clearly part of the same product.
+
+Customer-facing processing stages:
+1. Understanding your listing
+2. Building the campaign
+3. Creating the first image
+4. Creating the remaining images
+5. Preparing your download
+
+Do not show internal technical stage names.
+
+TRUST AND PRODUCT TRUTH
+
+The public experience should communicate:
+- The original photos remain the authority for the item.
+- Visible condition is preserved.
+- Unsupported details should not be invented.
+- Customer media remains private.
+- Failed or partial work is not marked complete.
+- The customer receives exactly the package count purchased.
+
+Do not over-explain the underlying compiler or scene-lock system on the landing page.
+
+Place technical detail in internal documentation, not marketing copy.
+
+QUALITY REVIEW
+
+Before completion, verify:
+
+Visual:
+- The implementation clearly matches the approved section images.
+- Violet and blue use is consistent.
+- Gradient treatments appear only where approved.
+- No section feels like a generic replacement for the reference.
+- Section compositions visibly change as the user scrolls.
+- Images are sharp and intentionally cropped.
+- Cards, shadows, and rounded surfaces are consistent.
+- Dark sections provide strong but controlled contrast.
+
+Content:
+- No fake statistics
+- No fake testimonials
+- No unsupported promises
+- No internal AI terminology
+- No repetitive benefit copy
+- Every section adds new information or confidence
+
+Interaction:
+- Navigation works
+- Upload CTA works
+- Mobile menu works
+- Tabs work
+- Accordions work
+- Buttons have all states
+- Forms preserve input
+- Focus states are visible
+
+Responsive:
+- 375px checked
+- 768px checked
+- 1024px checked
+- 1440px checked
+- No horizontal overflow
+- No clipped text
+- No tiny image labels
+- No desktop-only interaction
+
+Accessibility:
+- Keyboard tested
+- Screen-reader labels present
+- Reduced motion respected
+- Contrast reviewed
+- Touch targets sufficient
+
+Performance:
+- Images optimized
+- Layout shift minimized
+- Font loading efficient
+- Below-fold assets lazy-loaded
+- No unnecessary animation dependency
+
+FINAL OUTPUT REQUIREMENTS
+
+Produce:
+1. Complete landing page
+2. All listed sections
+3. Functional upload entry point
+4. Responsive desktop, tablet, and mobile layouts
+5. Motion matching the approved visual story
+6. Accessible navigation, tabs, forms, and accordions
+7. Pricing connected to configuration rather than hard-coded business logic
+8. Processing and results screens using the same design system
+9. Polished loading, empty, success, and error states
+10. Final screenshot review at desktop and mobile widths
+11. A concise report of what was tested
+
+FINAL INSTRUCTION
+
+The approved section images are not loose inspiration. They are the design authority.
+
+Reproduce their visual quality and section-specific compositions while converting them into a coherent, functional, responsive website.
+
+Do not remove the violet-blue identity.
+Do not flatten the visual system into beige editorial minimalism.
+Do not replace the approved rounded and luminous surfaces with a different aesthetic.
+Do not force every section into the same composition.
+Do not add unsupported proof.
+Do not expose internal workflow language.
+
+Preserve what makes the approved sections excellent:
+- Immediate clarity
+- Strong product imagery
+- Premium luminous surfaces
+- Controlled dimensionality
+- Beautiful violet-blue emphasis
+- Clear conversion hierarchy
+- Dynamic section variety
+- Trustworthy copy
+- One coherent visual identity
+
+The result should feel like the section images came to life as one complete, highly funded consumer AI product.
