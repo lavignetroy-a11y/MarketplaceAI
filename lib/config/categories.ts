@@ -73,3 +73,13 @@ export const EXAMPLE_CATEGORIES: readonly ItemCategory[] = ITEM_CATEGORIES.filte
 /** Source photos and finished images shown per example. Both match what the manifest generates. */
 export const EXAMPLE_SOURCE_COUNT = 4;
 export const EXAMPLE_RESULT_COUNT = 5;
+
+/**
+ * How many alternative items each image slot on the site can cycle through.
+ *
+ * A variant is an ITEM, not an angle. Toggling swaps every image inside a group to a different
+ * object, so a category tab always shows one coherent item photographed several ways rather
+ * than a collage of unrelated things.
+ */
+export const VARIANT_COUNT = 5;
+export const VARIANTS = [1, 2, 3, 4, 5] as const;
