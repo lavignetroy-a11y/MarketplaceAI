@@ -21,8 +21,8 @@ export default function Home() {
       <IconGradientDefs />
       <Nav />
       <Hero />
-      <WhyItMatters />
       <Stakes />
+      <WhyItMatters />
       <CampaignReveal />
       <HowItWorks />
       <Trust />

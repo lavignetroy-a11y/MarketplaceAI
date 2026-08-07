@@ -37,7 +37,11 @@ export function PlaceholderImage({
     // whenever src changes.
     const el = imgRef.current;
     if (el && el.complete && el.naturalWidth === 0) {
-      setFailedSrc(el.currentSrc || src);
+      // Store `src`, never `el.currentSrc`. currentSrc is resolved to an absolute URL, so it
+      // never equals the relative `src` this component is handed -- the failure would be
+      // recorded and then never matched, and the broken-image icon would show anyway. Which
+      // path fires depends on load timing, so this failed in some sections and not others.
+      setFailedSrc(src);
     }
   }, [src]);
 

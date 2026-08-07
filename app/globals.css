@@ -273,3 +273,45 @@ button.primary:disabled {
     text-decoration: underline;
   }
 }
+
+/* Stakes slider.
+   The two-tone track (violet up to the thumb, grey after) is painted as an inline gradient on
+   the element itself, because no browser exposes a "progress" side of a range input. These rules
+   strip the native chrome so that gradient is what shows, and give the thumb a ring so it reads
+   as a control rather than a dot. */
+.stakes-range {
+  -webkit-appearance: none;
+  appearance: none;
+  height: 6px;
+  border-radius: 999px;
+  outline: none;
+  cursor: pointer;
+}
+.stakes-range::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: #7a5cff;
+  border: 3px solid #ffffff;
+  box-shadow: 0 2px 8px rgba(122, 92, 255, 0.5);
+  transition: transform 0.15s ease;
+}
+.stakes-range::-webkit-slider-thumb:hover {
+  transform: scale(1.1);
+}
+.stakes-range::-moz-range-thumb {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: #7a5cff;
+  border: 3px solid #ffffff;
+  box-shadow: 0 2px 8px rgba(122, 92, 255, 0.5);
+}
+.stakes-range::-moz-range-track {
+  background: transparent;
+}
+.stakes-range:focus-visible {
+  box-shadow: 0 0 0 3px rgba(122, 92, 255, 0.28);
+}
