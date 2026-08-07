@@ -32,6 +32,12 @@ type FanCard = {
 
 // Reads left-to-right as the product story: one ordinary source photo, the finished hero
 // largest and frontmost, then the rest of the campaign cascading away behind it.
+//
+// The BEFORE card's visible width is the number that matters here. It is the "before" half of
+// the whole proposition, so it has to read as a photograph in its own right rather than as a
+// sliver peeking out from behind the hero. Measured against the reference, the visible portion
+// sits at 0.61x the AFTER card's width; the card itself is wider than that, so the hero still
+// overlaps its right edge and the two stay physically stacked.
 const DESKTOP_CARDS: FanCard[] = [
   {
     src: '/images/hero/original.webp',
@@ -39,9 +45,9 @@ const DESKTOP_CARDS: FanCard[] = [
     alt: 'An ordinary, unedited seller photo of the item',
     chip: { label: 'BEFORE', tone: 'dark' },
     left: 0,
-    top: 142,
-    width: 172,
-    height: 328,
+    top: 122,
+    width: 190,
+    height: 341,
     rotateY: 16,
     z: 10,
     frame: 'thin',
@@ -52,7 +58,7 @@ const DESKTOP_CARDS: FanCard[] = [
     objectPosition: '47% 50%',
     alt: 'The item, professionally presented in a clean, well-lit setting',
     chip: { label: 'AFTER', tone: 'accent' },
-    left: 149,
+    left: 178,
     top: 84,
     width: 303,
     height: 414,
@@ -64,11 +70,11 @@ const DESKTOP_CARDS: FanCard[] = [
     src: '/images/hero/alt-1.webp',
     objectPosition: '40% 50%',
     alt: 'A texture detail from the finished listing campaign',
-    left: 432,
+    left: 461,
     top: 129,
     width: 138,
     height: 335,
-    rotateY: -20,
+    rotateY: -25,
     z: 40,
     frame: 'thin',
   },
@@ -76,11 +82,11 @@ const DESKTOP_CARDS: FanCard[] = [
     src: '/images/hero/alt-2.webp',
     objectPosition: '42% 50%',
     alt: 'An alternate angle from the finished listing campaign',
-    left: 527,
+    left: 546,
     top: 149,
     width: 131,
     height: 305,
-    rotateY: -24,
+    rotateY: -30,
     z: 30,
     frame: 'thin',
   },
@@ -88,11 +94,11 @@ const DESKTOP_CARDS: FanCard[] = [
     src: '/images/hero/alt-3.webp',
     objectPosition: '50% 50%',
     alt: 'A rear view from the finished listing campaign',
-    left: 615,
+    left: 624,
     top: 170,
     width: 124,
     height: 278,
-    rotateY: -27,
+    rotateY: -34,
     z: 20,
     frame: 'thin',
   },
@@ -104,7 +110,7 @@ const DESKTOP_CARDS: FanCard[] = [
     top: 188,
     width: 118,
     height: 253,
-    rotateY: -29,
+    rotateY: -38,
     z: 10,
     frame: 'thin',
   },
@@ -117,9 +123,9 @@ const MOBILE_CARDS: FanCard[] = [
     alt: 'An ordinary, unedited seller photo of the item',
     chip: { label: 'BEFORE', tone: 'dark' },
     left: 0,
-    top: 78,
-    width: 94,
-    height: 176,
+    top: 70,
+    width: 104,
+    height: 183,
     rotateY: 16,
     z: 10,
     frame: 'thin',
@@ -130,7 +136,7 @@ const MOBILE_CARDS: FanCard[] = [
     objectPosition: '47% 50%',
     alt: 'The item, professionally presented in a clean, well-lit setting',
     chip: { label: 'AFTER', tone: 'accent' },
-    left: 76,
+    left: 95,
     top: 46,
     width: 158,
     height: 220,
@@ -142,11 +148,11 @@ const MOBILE_CARDS: FanCard[] = [
     src: '/images/hero/alt-1.webp',
     objectPosition: '40% 50%',
     alt: 'A texture detail from the finished listing campaign',
-    left: 228,
+    left: 247,
     top: 72,
     width: 80,
     height: 180,
-    rotateY: -22,
+    rotateY: -28,
     z: 30,
     frame: 'thin',
   },
@@ -277,6 +283,7 @@ function Callout({
   top,
   stage,
   tail,
+  tailAbove,
 }: {
   children: React.ReactNode;
   left: number;
@@ -284,32 +291,57 @@ function Callout({
   stage: Stage;
   /** length of the connector below the dot, in stage px. Stops short of the card by design. */
   tail?: number;
+  /** same connector, mirrored, for a label that sits below the fan and points up at it. */
+  tailAbove?: number;
 }) {
+  const label = (
+    <div className="whitespace-nowrap rounded-full border border-marketplace-line/70 bg-white/95 px-4 py-2 text-[0.8125rem] font-medium text-marketplace-ink shadow-soft backdrop-blur">
+      {children}
+    </div>
+  );
+  // The dot must be a direct flex child so the column blockifies it -- width/height do nothing on
+  // an inline span, so wrapping it to carry a margin makes it disappear entirely.
+  const dot = (margin: string) => (
+    <span
+      className={`${margin} h-[7px] w-[7px] shrink-0 rounded-full bg-marketplace-violet`}
+      aria-hidden="true"
+    />
+  );
+  // The line always fades out at the end furthest from the label, so it dissolves before it can
+  // reach a photo. `to bottom` for a tail hanging below; reversed for one rising above.
+  const line = (height: number, direction: 'down' | 'up') => (
+    <span
+      className="w-px shrink-0"
+      style={{
+        height,
+        background:
+          direction === 'down'
+            ? 'linear-gradient(to bottom, #7A5CFF 0%, rgba(122,92,255,0.35) 45%, rgba(122,92,255,0) 100%)'
+            : 'linear-gradient(to top, #7A5CFF 0%, rgba(122,92,255,0.35) 45%, rgba(122,92,255,0) 100%)',
+      }}
+      aria-hidden="true"
+    />
+  );
+
   return (
     <div
       className="absolute z-[60] flex flex-col items-center"
       style={{ left: pctW(left, stage), top: pctH(top, stage), transform: 'translateX(-50%)' }}
     >
-      <div className="whitespace-nowrap rounded-full border border-marketplace-line/70 bg-white/95 px-4 py-2 text-[0.8125rem] font-medium text-marketplace-ink shadow-soft backdrop-blur">
-        {children}
-      </div>
+      {tailAbove ? (
+        <>
+          {line(tailAbove, 'up')}
+          {dot('mb-1.5')}
+        </>
+      ) : null}
+      {label}
       {tail ? (
         <>
           {/* Dot sits directly under the label and terminates the connector at the top; the
               line then fades downward and stops short of the card, so nothing ever touches
               the photo. */}
-          <span
-            className="mt-1.5 h-[7px] w-[7px] rounded-full bg-marketplace-violet"
-            aria-hidden="true"
-          />
-          <span
-            className="w-px"
-            style={{
-              height: tail,
-              background: 'linear-gradient(to bottom, #7A5CFF 0%, rgba(122,92,255,0.35) 45%, rgba(122,92,255,0) 100%)',
-            }}
-            aria-hidden="true"
-          />
+          {dot('mt-1.5')}
+          {line(tail, 'down')}
         </>
       ) : null}
     </div>
@@ -394,17 +426,20 @@ export function HeroVisual() {
           <Card key={card.src} card={card} stage={DESKTOP_STAGE} />
         ))}
 
-        <Callout left={86} top={54} tail={40} stage={DESKTOP_STAGE}>
+        {/* Each callout is centred on the card it names, so widening the BEFORE card and
+            re-spacing the fan moves all four with it. */}
+        <Callout left={90} top={54} tail={40} stage={DESKTOP_STAGE}>
           Your original photos
         </Callout>
         {/* directly above the AFTER chip on the hero card, matching the other two */}
-        <Callout left={300} top={4} tail={28} stage={DESKTOP_STAGE}>
+        <Callout left={332} top={4} tail={28} stage={DESKTOP_STAGE}>
           AI-enhanced results
         </Callout>
-        <Callout left={592} top={62} tail={39} stage={DESKTOP_STAGE}>
+        <Callout left={609} top={62} tail={39} stage={DESKTOP_STAGE}>
           More buyer confidence
         </Callout>
-        <Callout left={480} top={556} stage={DESKTOP_STAGE}>
+        {/* sits below the fan, so its connector rises toward the cards instead of hanging */}
+        <Callout left={560} top={534} tailAbove={34} stage={DESKTOP_STAGE}>
           A complete listing set
         </Callout>
       </StageBox>
@@ -417,7 +452,7 @@ export function HeroVisual() {
           <Card key={card.src} card={card} stage={MOBILE_STAGE} compact />
         ))}
 
-        <Callout left={155} top={0} tail={12} stage={MOBILE_STAGE}>
+        <Callout left={172} top={0} tail={12} stage={MOBILE_STAGE}>
           AI-enhanced results
         </Callout>
       </StageBox>
