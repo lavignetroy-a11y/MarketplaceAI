@@ -276,14 +276,14 @@ function Reflection({ card, stage, compact }: { card: FanCard; stage: Stage; com
   return (
     <div
       aria-hidden="true"
-      className="pointer-events-none absolute overflow-hidden opacity-[0.5]"
+      className="pointer-events-none absolute overflow-hidden"
       style={{
         left: pctW(card.left, stage),
         top: pctH(card.top + card.height, stage),
         width: pctW(card.width, stage),
         height: pctH(card.height * 0.4, stage),
-        // Below every card (those run 10-50) but above the floor sheen. Relative order among
-        // reflections still follows the fan so they overlap each other the way the cards do.
+        // Relative order within the reflection layer follows the fan, so a reflection occludes
+        // the ones behind it exactly as its card does.
         zIndex: Math.max(1, Math.round(card.z / 10)),
         transform: `rotateY(${card.rotateY}deg)`,
         maskImage: 'linear-gradient(to bottom, rgba(0,0,0,0.8), transparent 82%)',
@@ -312,6 +312,40 @@ function Reflection({ card, stage, compact }: { card: FanCard; stage: Stage; com
           style={{ borderRadius: innerRadius }}
         />
       </div>
+    </div>
+  );
+}
+
+/**
+ * Composites every reflection as one opaque group, then fades the whole group.
+ *
+ * Fading each reflection individually is what produced the visible bug: at 50% opacity each one
+ * is translucent, so a card standing in front showed the reflection of the card behind it
+ * straight through its own. A real reflection cannot -- whatever occludes an object occludes its
+ * reflection too. Compositing opaquely first makes the front reflection hide the back one, and
+ * the single group opacity is then just how reflective the surface is.
+ *
+ * The layer re-declares the stage's perspective because it is a new containing block; without it
+ * the rotateY on each reflection would project differently from its card.
+ */
+function ReflectionLayer({
+  cards,
+  stage,
+  compact,
+}: {
+  cards: FanCard[];
+  stage: Stage;
+  compact?: boolean;
+}) {
+  return (
+    <div
+      aria-hidden="true"
+      className="pointer-events-none absolute inset-0 opacity-[0.5]"
+      style={{ zIndex: 1, perspective: '1250px', perspectiveOrigin: '42% 38%' }}
+    >
+      {cards.map((card) => (
+        <Reflection key={`r-${card.src}`} card={card} stage={stage} compact={compact} />
+      ))}
     </div>
   );
 }
@@ -461,10 +495,7 @@ export function HeroVisual() {
 
         <Floor top="64%" />
 
-        {/* reflections first, all beneath the cards */}
-        {DESKTOP_CARDS.map((card) => (
-          <Reflection key={`r-${card.src}`} card={card} stage={DESKTOP_STAGE} />
-        ))}
+        <ReflectionLayer cards={DESKTOP_CARDS} stage={DESKTOP_STAGE} />
         {DESKTOP_CARDS.map((card) => (
           <Card key={card.src} card={card} stage={DESKTOP_STAGE} />
         ))}
@@ -491,9 +522,7 @@ export function HeroVisual() {
       <StageBox size={MOBILE_STAGE} className="lg:hidden">
         <Floor top="62%" />
 
-        {MOBILE_CARDS.map((card) => (
-          <Reflection key={`r-${card.src}`} card={card} stage={MOBILE_STAGE} compact />
-        ))}
+        <ReflectionLayer cards={MOBILE_CARDS} stage={MOBILE_STAGE} compact />
         {MOBILE_CARDS.map((card) => (
           <Card key={card.src} card={card} stage={MOBILE_STAGE} compact />
         ))}
