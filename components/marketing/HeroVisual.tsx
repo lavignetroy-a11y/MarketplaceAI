@@ -42,7 +42,7 @@ const DESKTOP_CARDS: FanCard[] = [
     top: 142,
     width: 172,
     height: 328,
-    rotateY: -16,
+    rotateY: 16,
     z: 10,
     frame: 'thin',
     muted: true,
@@ -68,7 +68,7 @@ const DESKTOP_CARDS: FanCard[] = [
     top: 129,
     width: 138,
     height: 335,
-    rotateY: 20,
+    rotateY: -20,
     z: 40,
     frame: 'thin',
   },
@@ -80,7 +80,7 @@ const DESKTOP_CARDS: FanCard[] = [
     top: 149,
     width: 131,
     height: 305,
-    rotateY: 24,
+    rotateY: -24,
     z: 30,
     frame: 'thin',
   },
@@ -92,7 +92,7 @@ const DESKTOP_CARDS: FanCard[] = [
     top: 170,
     width: 124,
     height: 278,
-    rotateY: 27,
+    rotateY: -27,
     z: 20,
     frame: 'thin',
   },
@@ -104,7 +104,7 @@ const DESKTOP_CARDS: FanCard[] = [
     top: 188,
     width: 118,
     height: 253,
-    rotateY: 29,
+    rotateY: -29,
     z: 10,
     frame: 'thin',
   },
@@ -120,7 +120,7 @@ const MOBILE_CARDS: FanCard[] = [
     top: 78,
     width: 94,
     height: 176,
-    rotateY: -16,
+    rotateY: 16,
     z: 10,
     frame: 'thin',
     muted: true,
@@ -146,7 +146,7 @@ const MOBILE_CARDS: FanCard[] = [
     top: 72,
     width: 80,
     height: 180,
-    rotateY: 22,
+    rotateY: -22,
     z: 30,
     frame: 'thin',
   },
@@ -157,8 +157,8 @@ const pctH = (v: number, s: Stage) => `${((v / s.h) * 100).toFixed(4)}%`;
 
 function Card({ card, stage, compact }: { card: FanCard; stage: Stage; compact?: boolean }) {
   const thick = card.frame === 'thick';
-  const pad = thick ? (compact ? 5 : 7) : compact ? 4 : 6;
-  const outerRadius = thick ? (compact ? 16 : 20) : compact ? 13 : 16;
+  const pad = thick ? (compact ? 4 : 5) : compact ? 3 : 4;
+  const outerRadius = thick ? (compact ? 14 : 18) : compact ? 11 : 14;
   const innerRadius = outerRadius - pad;
 
   // The frame is padding carrying a gradient rather than a flat border, plus inset edge
@@ -231,7 +231,7 @@ function Card({ card, stage, compact }: { card: FanCard; stage: Stage; compact?:
           {image(false)}
           {card.chip && (
             <span
-              className={`absolute left-1/2 top-0 z-10 -translate-x-1/2 translate-y-[10px] whitespace-nowrap rounded-full px-2.5 py-1 text-[0.6rem] font-[650] uppercase tracking-[0.12em] shadow-soft ${
+              className={`absolute left-0 top-0 z-10 translate-x-[12px] translate-y-[12px] whitespace-nowrap rounded-[7px] px-2.5 py-1 text-[0.6rem] font-[650] uppercase tracking-[0.12em] shadow-soft ${
                 card.chip.tone === 'accent'
                   ? 'bg-violet-blue text-white'
                   : 'bg-marketplace-ink/85 text-white backdrop-blur-sm'
@@ -277,36 +277,39 @@ function Callout({
   top,
   stage,
   tail,
-  center = false,
 }: {
   children: React.ReactNode;
   left: number;
   top: number;
   stage: Stage;
-  /** length of the hairline tying the label down to its card */
+  /** length of the connector below the dot, in stage px. Stops short of the card by design. */
   tail?: number;
-  center?: boolean;
 }) {
   return (
     <div
       className="absolute z-[60] flex flex-col items-center"
-      style={{
-        left: pctW(left, stage),
-        top: pctH(top, stage),
-        transform: center ? 'translateX(-50%)' : undefined,
-      }}
+      style={{ left: pctW(left, stage), top: pctH(top, stage), transform: 'translateX(-50%)' }}
     >
       <div className="whitespace-nowrap rounded-full border border-marketplace-line/70 bg-white/95 px-4 py-2 text-[0.8125rem] font-medium text-marketplace-ink shadow-soft backdrop-blur">
         {children}
       </div>
       {tail ? (
         <>
+          {/* Dot sits directly under the label and terminates the connector at the top; the
+              line then fades downward and stops short of the card, so nothing ever touches
+              the photo. */}
           <span
-            className="w-px bg-gradient-to-b from-marketplace-line to-transparent"
-            style={{ height: tail }}
+            className="mt-1.5 h-[7px] w-[7px] rounded-full bg-marketplace-violet"
             aria-hidden="true"
           />
-          <span className="h-1.5 w-1.5 rounded-full bg-marketplace-violet/70" aria-hidden="true" />
+          <span
+            className="w-px"
+            style={{
+              height: tail,
+              background: 'linear-gradient(to bottom, #7A5CFF 0%, rgba(122,92,255,0.35) 45%, rgba(122,92,255,0) 100%)',
+            }}
+            aria-hidden="true"
+          />
         </>
       ) : null}
     </div>
@@ -384,11 +387,6 @@ export function HeroVisual() {
             vectorEffect="non-scaling-stroke"
           />
         </svg>
-        <span
-          className="pointer-events-none absolute h-2 w-2 -translate-x-1/2 rounded-full border-2 border-white bg-marketplace-violet/70 shadow-soft"
-          style={{ left: '50%', top: pctH(12, DESKTOP_STAGE) }}
-          aria-hidden="true"
-        />
 
         <Floor top="64%" />
 
@@ -396,13 +394,14 @@ export function HeroVisual() {
           <Card key={card.src} card={card} stage={DESKTOP_STAGE} />
         ))}
 
-        <Callout left={4} top={62} tail={44} stage={DESKTOP_STAGE}>
+        <Callout left={86} top={54} tail={40} stage={DESKTOP_STAGE}>
           Your original photos
         </Callout>
-        <Callout left={DESKTOP_STAGE.w / 2} top={28} tail={20} center stage={DESKTOP_STAGE}>
+        {/* directly above the AFTER chip on the hero card, matching the other two */}
+        <Callout left={300} top={4} tail={28} stage={DESKTOP_STAGE}>
           AI-enhanced results
         </Callout>
-        <Callout left={578} top={70} tail={43} stage={DESKTOP_STAGE}>
+        <Callout left={592} top={62} tail={39} stage={DESKTOP_STAGE}>
           More buyer confidence
         </Callout>
         <Callout left={480} top={556} stage={DESKTOP_STAGE}>
@@ -418,7 +417,7 @@ export function HeroVisual() {
           <Card key={card.src} card={card} stage={MOBILE_STAGE} compact />
         ))}
 
-        <Callout left={MOBILE_STAGE.w / 2} top={2} tail={10} center stage={MOBILE_STAGE}>
+        <Callout left={155} top={0} tail={12} stage={MOBILE_STAGE}>
           AI-enhanced results
         </Callout>
       </StageBox>
