@@ -88,17 +88,22 @@ function shot(opts: {
   const list = shotsFor(opts.item);
   const s = list[opts.shotIndex % list.length];
   const isRoot = opts.id === rootId(opts.item);
+  // A shot that needs the camera somewhere genuinely different is generated from text alone.
+  // Handed a reference image, an edit model preserves the composition it was given and returns
+  // the same view nudged or mirrored -- and follows the picture over the words. Consistency for
+  // these comes from the item and set descriptions, which every shot shares verbatim.
+  const standalone = Boolean(s.newViewpoint);
   items.push({
     id: opts.id,
     path: opts.path,
     group: opts.group,
     label: `${opts.item.label} — ${opts.label}`,
-    prompt: compose(opts.item, s.brief(opts.item), isRoot),
+    prompt: compose(opts.item, s.brief(opts.item), isRoot || standalone),
     size: opts.size ?? s.size,
     item: opts.item.key,
     variant: 0,
-    staticReferences: opts.item.references ?? [],
-    dependsOn: isRoot ? [] : [rootId(opts.item)],
+    staticReferences: standalone ? [] : (opts.item.references ?? []),
+    dependsOn: isRoot || standalone ? [] : [rootId(opts.item)],
   });
 }
 

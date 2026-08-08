@@ -73,6 +73,22 @@ export type Shot = {
   label: string;
   size: ShotSize;
   brief: (f: ItemFacts) => string;
+  /**
+   * True when the shot needs the camera somewhere genuinely different, rather than a closer or
+   * slightly altered view of the same setup.
+   *
+   * These shots must NOT be generated as edits. An edit model is built to preserve the
+   * composition it is handed and has no three-dimensional information to rotate around, so asked
+   * for the opposite corner it returns the same view nudged, or mirrored -- and it follows the
+   * reference image over the written description, which is why a set described as red brick came
+   * back tan. Three rounds of increasingly careful prompt wording all failed the same way,
+   * because the constraint was never the wording.
+   *
+   * So a new viewpoint is generated from text alone. Consistency then comes from the item
+   * description and the shared set description being identical across every shot -- which is
+   * what those were built to carry -- rather than from an image the model will copy.
+   */
+  newViewpoint?: boolean;
 };
 
 const hero = (extra = ''): Shot => ({
@@ -148,6 +164,7 @@ const FREESTANDING: Shot[] = [
     key: 'side',
     label: 'Side profile',
     size: '1024x1024',
+    newViewpoint: true,
     brief: (f) =>
       `${cap(f.description)}, in the same place, photographed square from the side so the full ` +
       `profile and depth read clearly. Whole item in frame.`,
@@ -156,6 +173,7 @@ const FREESTANDING: Shot[] = [
     key: 'rear',
     label: 'Rear view',
     size: '1024x1024',
+    newViewpoint: true,
     brief: (f) =>
       `${cap(f.description)}, turned round in the same place and photographed from behind, showing ` +
       `the back and how it is built. Whole item in frame. This is a shot a seller can take ` +
@@ -251,6 +269,7 @@ const RIDEABLE: Shot[] = [
     key: 'front-right',
     label: 'Front-right corner',
     size: '1024x1024',
+    newViewpoint: true,
     brief: (f) =>
       `${cap(f.description)}, photographed from its front-right corner — the front and the right ` +
       `flank both visible.\n\n${cameraAt('1:30', 'back across the item toward 6 o\'clock')}` +
@@ -260,6 +279,7 @@ const RIDEABLE: Shot[] = [
     key: 'rear-left',
     label: 'Rear-left corner',
     size: '1024x1024',
+    newViewpoint: true,
     brief: (f) =>
       `${cap(f.description)}, photographed from its rear-left corner. The back of the item and ` +
       `its left flank are the subject now.\n\n` +
