@@ -9,9 +9,10 @@ export const metadata: Metadata = {
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
+  // Smooth scrolling is ours, set in globals.css for the in-page nav links. Declaring it on the
+  // root element tells Next it is intentional, so it stops warning and stops overriding it on
+  // route changes.
   return (
-    {/* Smooth scrolling is ours, set in globals.css for the in-page nav links. Declaring it here
-        tells Next it is intentional, so it stops warning and stops fighting it on route changes. */}
     <html lang="en" data-scroll-behavior="smooth">
       <head>
         <link rel="preconnect" href="https://fonts.googleapis.com" />
