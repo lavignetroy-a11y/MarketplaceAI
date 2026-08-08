@@ -226,7 +226,7 @@ function UploadFlow() {
         </div>
       </header>
 
-      <div className="page-shell mx-auto max-w-[900px] py-12">
+      <div className="page-shell mx-auto max-w-[1120px] py-9">
         <Steps
           current={
             !campaign ? 1 : campaign.status === 'preview_ready' ? 3 : campaign.paid ? 4 : 2
@@ -239,7 +239,7 @@ function UploadFlow() {
             Loading your set…
           </div>
         ) : !campaign ? (
-          <form onSubmit={handleSubmit} className="mt-10">
+          <form onSubmit={handleSubmit} className="mt-8">
             <h1 className="text-[2rem] font-[650] leading-[1.05] tracking-[-0.04em] text-marketplace-ink">
               Upload your photos
             </h1>
@@ -247,6 +247,14 @@ function UploadFlow() {
               Add every angle you have of <span className="font-medium">one item</span>. Ordinary
               phone photos are exactly right — we&rsquo;ll handle the rest.
             </p>
+
+            {/* Two columns from lg. As one stack the dropzone, the counter, the notes and the
+                button queued up vertically and the call to action sat a full screen below the
+                fold -- so the thing the page exists to get clicked was the one thing never on
+                screen. Choosing what you get belongs beside choosing what you send, not after
+                scrolling past it. */}
+            <div className="mt-6 grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,0.82fr)] lg:gap-8">
+            <div className="min-w-0">
 
             <div
               role="button"
@@ -258,7 +266,7 @@ function UploadFlow() {
                 e.preventDefault();
                 addFiles(e.dataTransfer.files);
               }}
-              className="mt-8 cursor-pointer rounded-brand-lg border border-marketplace-line/60 bg-white/70 p-2 shadow-soft"
+              className="mt-6 cursor-pointer rounded-brand-lg border border-marketplace-line/60 bg-white/70 p-2 shadow-soft"
             >
               <input
                 ref={fileInputRef}
@@ -268,7 +276,7 @@ function UploadFlow() {
                 className="hidden"
                 onChange={(e) => addFiles(e.target.files)}
               />
-              <div className="rounded-[22px] border border-dashed border-marketplace-line bg-marketplace-canvas/55 px-6 py-12 text-center">
+              <div className="rounded-[22px] border border-dashed border-marketplace-line bg-marketplace-canvas/55 px-6 py-10 text-center">
                 <span className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-violet-blue shadow-[0_8px_20px_rgba(122,92,255,0.32)]">
                   <ImagePlus className="h-6 w-6 text-white" strokeWidth={2} />
                 </span>
@@ -312,11 +320,14 @@ function UploadFlow() {
               </div>
             )}
 
-            <div className="mt-10 rounded-brand-lg border border-marketplace-line/60 bg-white/80 p-7 shadow-soft">
+            </div>
+
+            <div className="min-w-0 lg:sticky lg:top-6">
+            <div className="rounded-brand-lg border border-marketplace-line/60 bg-white/80 p-6 shadow-soft">
               <h2 className="text-[1.0625rem] font-semibold tracking-[-0.02em] text-marketplace-ink">
                 How many finished images?
               </h2>
-              <div className="mt-5 flex items-center gap-5">
+              <div className="mt-5 flex flex-wrap items-center gap-4 sm:flex-nowrap sm:gap-5">
                 <button
                   type="button"
                   onClick={() => setCount((c) => Math.max(MIN_IMAGES, c - 1))}
@@ -333,7 +344,7 @@ function UploadFlow() {
                   value={count}
                   aria-label="Number of finished images"
                   onChange={(e) => setCount(Number(e.target.value))}
-                  className="flex-1 accent-marketplace-violet"
+                  className="min-w-0 flex-1 accent-marketplace-violet"
                 />
                 <button
                   type="button"
@@ -344,7 +355,7 @@ function UploadFlow() {
                 >
                   <Plus className="h-4 w-4" strokeWidth={2.25} />
                 </button>
-                <div className="w-24 text-right">
+                <div className="w-20 shrink-0 text-right sm:w-24">
                   <span className="block font-mono text-[1.75rem] font-semibold leading-none text-marketplace-ink">
                     {count}
                   </span>
@@ -364,7 +375,7 @@ function UploadFlow() {
               </div>
             </div>
 
-            <div className="mt-6">
+            <div className="mt-5">
               <label
                 htmlFor="notes"
                 className="mb-1.5 block text-[0.875rem] font-medium text-marketplace-ink"
@@ -390,7 +401,7 @@ function UploadFlow() {
             <button
               type="submit"
               disabled={submitting || files.length === 0}
-              className="mt-8 inline-flex min-h-[54px] w-full items-center justify-center gap-2.5 rounded-[16px] bg-violet-blue text-[1rem] font-semibold text-white shadow-[0_12px_30px_rgba(122,92,255,0.32)] transition-transform hover:-translate-y-px disabled:opacity-50 disabled:hover:translate-y-0"
+              className="mt-6 inline-flex min-h-[54px] w-full items-center justify-center gap-2.5 rounded-[16px] bg-violet-blue text-[1rem] font-semibold text-white shadow-[0_12px_30px_rgba(122,92,255,0.32)] transition-transform hover:-translate-y-px disabled:opacity-50 disabled:hover:translate-y-0"
             >
               {submitting ? (
                 <Loader2 className="h-5 w-5 animate-spin" />
@@ -404,6 +415,8 @@ function UploadFlow() {
             <p className="mt-3 text-center text-[0.8125rem] text-marketplace-muted">
               No payment yet. You&rsquo;ll see a finished image from your own photos first.
             </p>
+            </div>
+            </div>
           </form>
         ) : (
           <div className="mt-10">
