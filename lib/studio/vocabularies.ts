@@ -42,6 +42,25 @@ export type ItemFacts = {
   controls?: string;
   /** the part a buyer inspects hardest */
   scrutiny?: string;
+  /**
+   * What surrounds the item, described relative to the item itself.
+   *
+   * This exists because a model has no 3D model of the place. Ask it for "the opposite corner"
+   * and it has to invent what is behind the subject from there -- and since it cannot know, the
+   * safe interpolation from the reference photo is to re-render a similar composition with the
+   * item turned round. Which is exactly the failure. Naming what stands on each side turns the
+   * walk-around into something it can render rather than something it must guess.
+   */
+  scene?: {
+    /** what the item's front end faces */
+    ahead: string;
+    /** what stands behind the item */
+    behind: string;
+    /** what is off the item's left flank */
+    left: string;
+    /** what is off the item's right flank */
+    right: string;
+  };
 };
 
 /** Descriptions are noun phrases, so they need a capital when they open a sentence. */
@@ -98,17 +117,34 @@ const context: Shot = {
 };
 
 
-const WALK_AROUND = `
+const walkAround = (f: ItemFacts, stand: string, behindSubject: string, edges: string) =>
+  `
 HOW THIS ANGLE IS REACHED — read this literally.
 The machine has not moved. It has not been turned, reversed, or repositioned by so much as a
-degree; it is parked exactly where the previous photograph left it, on the same ground, facing
-the same way. The PHOTOGRAPHER has walked to a different corner of it and taken another picture.
-Two consequences must both be visible, and getting them wrong is what makes a set look faked:
-the background changes, because the camera is now pointing a different way across the same
-place — a wall that was behind the machine may now be behind the photographer, and vice versa.
-And the machine presents a different face to the lens purely because the lens moved around it.
-Never render this as the same view mirrored, and never render the machine rotated in place.
+degree; it is parked exactly where the previous photograph left it, facing the same way. The
+PHOTOGRAPHER has walked to a different point around it.
+
+WHERE THE CAMERA IS
+${stand}
+
+WHAT IS THEREFORE BEHIND THE MACHINE IN THIS FRAME
+${behindSubject}
+${edges}
+
+This is not a matter of interpretation. The camera has moved to a stated position in a place
+whose surroundings are listed above, so what appears behind the machine follows from geometry --
+render that, do not invent a new background and do not reuse the previous one. Never turn the
+machine to face the camera, never mirror the previous frame.
 `.trim();
+
+/** Fallbacks when an item has no scene described, so the clause still reads sensibly. */
+const sceneOf = (f: ItemFacts) =>
+  f.scene ?? {
+    ahead: 'the open ground the machine faces',
+    behind: 'the wall or structure it is parked in front of',
+    left: 'the ground off its left side',
+    right: 'the ground off its right side',
+  };
 
 // --- freestanding: you can pick it up and turn it round -----------------------------------
 
@@ -222,16 +258,35 @@ const RIDEABLE: Shot[] = [
     label: 'Front-right corner',
     size: '1024x1024',
     brief: (f) =>
-      `${cap(f.description)}, photographed from its front-right corner. The photographer has ` +
-      `walked round from the front-left corner to the front-right one.\n\n${WALK_AROUND}`,
+      `${cap(f.description)}, photographed from its front-right corner.\n\n` +
+      walkAround(
+        f,
+        `Standing off the machine's front-right corner, looking back across it. The camera has ` +
+          `crossed from the front-left corner to the front-right one; it is on the opposite side ` +
+          `of the machine's nose from the previous frame.`,
+        `${cap(sceneOf(f).behind)} — the same thing that stood behind it before, because the ` +
+          `machine has not turned. It is seen from a different angle and is not centred the way ` +
+          `it was.`,
+        `Off to one edge of frame: ${sceneOf(f).right}. ${cap(sceneOf(f).left)} is now behind ` +
+          `the camera and must not appear.`,
+      )
   },
   {
     key: 'rear-left',
     label: 'Rear-left corner',
     size: '1024x1024',
     brief: (f) =>
-      `${cap(f.description)}, photographed from its rear-left corner, continuing the walk-around. ` +
-      `The back of the machine is the subject now.\n\n${WALK_AROUND}`,
+      `${cap(f.description)}, photographed from its rear-left corner. The back of the machine is ` +
+      `the subject now.\n\n` +
+      walkAround(
+        f,
+        `Standing behind the machine and off its left side, looking forward along it toward its ` +
+          `front end. The camera has walked all the way round to the back.`,
+        `${cap(sceneOf(f).ahead)} — because the camera now looks in the direction the machine ` +
+          `faces, what lies beyond its nose is what fills the background.`,
+        `Off to one edge of frame: ${sceneOf(f).left}. ${cap(sceneOf(f).behind)} is now behind ` +
+          `the camera and must not appear anywhere in this frame.`,
+      )
   },
   {
     key: 'controls',
