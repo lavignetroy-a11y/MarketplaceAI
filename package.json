@@ -8,7 +8,8 @@
     "start": "next start",
     "lint": "next lint",
     "studio:generate": "tsx scripts/generate-studio-images.ts",
-    "sync": "node scripts/sync.mjs"
+    "sync": "node scripts/sync.mjs",
+    "studio:try": "tsx scripts/try-item.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.112.2",

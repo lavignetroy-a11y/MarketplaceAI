@@ -97,6 +97,19 @@ const context: Shot = {
     `The item remains the clear subject.`,
 };
 
+
+const WALK_AROUND = `
+HOW THIS ANGLE IS REACHED — read this literally.
+The machine has not moved. It has not been turned, reversed, or repositioned by so much as a
+degree; it is parked exactly where the previous photograph left it, on the same ground, facing
+the same way. The PHOTOGRAPHER has walked to a different corner of it and taken another picture.
+Two consequences must both be visible, and getting them wrong is what makes a set look faked:
+the background changes, because the camera is now pointing a different way across the same
+place — a wall that was behind the machine may now be behind the photographer, and vice versa.
+And the machine presents a different face to the lens purely because the lens moved around it.
+Never render this as the same view mirrored, and never render the machine rotated in place.
+`.trim();
+
 // --- freestanding: you can pick it up and turn it round -----------------------------------
 
 const FREESTANDING: Shot[] = [
@@ -209,18 +222,16 @@ const RIDEABLE: Shot[] = [
     label: 'Front-right corner',
     size: '1024x1024',
     brief: (f) =>
-      `${cap(f.description)}, photographed from the front-right corner — the photographer has walked ` +
-      `round to the opposite front corner. The machine has not been moved or turned; only the ` +
-      `camera position has changed, and the background shifts accordingly.`,
+      `${cap(f.description)}, photographed from its front-right corner. The photographer has ` +
+      `walked round from the front-left corner to the front-right one.\n\n${WALK_AROUND}`,
   },
   {
     key: 'rear-left',
     label: 'Rear-left corner',
     size: '1024x1024',
     brief: (f) =>
-      `${cap(f.description)}, photographed from behind and to the left, continuing the walk-around. ` +
-      `The rear of the machine is the subject. Again the machine is stationary and only the ` +
-      `camera has moved.`,
+      `${cap(f.description)}, photographed from its rear-left corner, continuing the walk-around. ` +
+      `The back of the machine is the subject now.\n\n${WALK_AROUND}`,
   },
   {
     key: 'controls',

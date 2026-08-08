@@ -41,16 +41,16 @@ export type ValuePreset = {
 // Ordered cheapest to dearest so the row itself reads as a scale, and the gap visibly grows as a
 // visitor moves right.
 export const VALUE_PRESETS: ValuePreset[] = [
-  { key: 'accent-chair', label: 'Accent chair', price: 240, category: 'furniture', variant: 1 },
-  { key: 'sectional-sofa', label: 'Sectional sofa', price: 850, category: 'furniture', variant: 2 },
-  { key: 'dining-set', label: 'Dining set', price: 1400, category: 'furniture', variant: 4 },
-  { key: 'riding-mower', label: 'Riding mower', price: 2400, category: 'outdoor', variant: 1 },
-  { key: 'atv', label: 'ATV / quad', price: 3600, category: 'outdoor', variant: 3 },
-  { key: 'fishing-boat', label: 'Boat and trailer', price: 4800, category: 'outdoor', variant: 2 },
+  { key: 'accent-chair', label: 'Accent chair', price: 120, category: 'furniture', variant: 1 },
+  { key: 'sectional-sofa', label: 'Sectional sofa', price: 425, category: 'furniture', variant: 2 },
+  { key: 'dining-set', label: 'Dining set', price: 700, category: 'furniture', variant: 4 },
+  { key: 'riding-mower', label: 'Riding mower', price: 1200, category: 'outdoor', variant: 1 },
+  { key: 'atv', label: 'ATV / quad', price: 1800, category: 'outdoor', variant: 3 },
+  { key: 'fishing-boat', label: 'Boat and trailer', price: 2400, category: 'outdoor', variant: 2 },
 ];
 
-export const MIN_VALUE = 250;
-export const MAX_VALUE = 5000;
+export const MIN_VALUE = 125;
+export const MAX_VALUE = 2500;
 export const DEFAULT_PRESET = 'dining-set';
 
 export type Stakes = {
