@@ -30,10 +30,15 @@ for (const f of ['next-env.d.ts', 'package-lock.json']) {
   run(`git checkout -- ${f}`, true);
 }
 
-const dirty = run('git status --porcelain', true).trim();
-if (dirty) {
-  console.error('\n  You have other uncommitted changes:\n');
-  console.error(dirty.split('\n').map((l) => `    ${l}`).join('\n'));
+// Only MODIFIED TRACKED files block a rebase. Untracked ones are none of git's business and
+// stopping for them just blocks the pull over things like a downloaded CLI sitting in the folder.
+const dirty = run('git status --porcelain', true)
+  .split('\n')
+  .filter((l) => l.trim() && !l.startsWith('??'));
+
+if (dirty.length) {
+  console.error('\n  You have uncommitted changes to tracked files:\n');
+  console.error(dirty.map((l) => `    ${l}`).join('\n'));
   console.error('\n  Commit or stash them first — sync will not touch your own work.\n');
   process.exit(1);
 }
