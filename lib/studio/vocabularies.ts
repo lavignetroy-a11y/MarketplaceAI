@@ -22,6 +22,8 @@
 // Each vocabulary asks the item for the nouns it needs (what its interior is, what its controls
 // look like), so the shot stays specific without every item needing a hand-written list.
 
+import { CONTINUITY_CONTRACT, describePlace, type Place } from './place';
+
 export type ShotSize = '1024x1024' | '1024x1536' | '1536x1024';
 
 /** The item facts a shot brief can draw on. Kept narrow on purpose. */
@@ -51,17 +53,17 @@ export type ItemFacts = {
    * item turned round. Which is exactly the failure. Naming what stands on each side turns the
    * walk-around into something it can render rather than something it must guess.
    */
-  scene?: {
-    /** what the item's front end faces */
-    ahead: string;
-    /** what stands behind the item */
-    behind: string;
-    /** what is off the item's left flank */
-    left: string;
-    /** what is off the item's right flank */
-    right: string;
-  };
+  place?: Place;
 };
+
+/**
+ * The set description and continuity checklist, appended to every shot of an item that has a
+ * place. Identical every time on purpose: consistency comes from each frame being handed the
+ * same location, not from each frame being told to match the one before it.
+ */
+export function placeClause(f: ItemFacts): string {
+  return f.place ? `\n\n${describePlace(f.place)}\n\n${CONTINUITY_CONTRACT}` : '';
+}
 
 /** Descriptions are noun phrases, so they need a capital when they open a sentence. */
 const cap = (t: string) => t.charAt(0).toUpperCase() + t.slice(1);
@@ -117,34 +119,26 @@ const context: Shot = {
 };
 
 
-const walkAround = (f: ItemFacts, stand: string, behindSubject: string, edges: string) =>
+/**
+ * Places the camera on the clock face and lets the set description supply the rest.
+ *
+ * Earlier versions tried to spell out what would be behind the subject in each frame. That put
+ * the geography in the shot instead of in the location, so every shot described a slightly
+ * different world and the set drifted. Now the shot says only where the photographer is standing
+ * and which way they are looking; what is visible follows from the set, which is the same in
+ * every frame.
+ */
+const cameraAt = (bearing: string, looking: string) =>
   `
-HOW THIS ANGLE IS REACHED — read this literally.
-The machine has not moved. It has not been turned, reversed, or repositioned by so much as a
-degree; it is parked exactly where the previous photograph left it, facing the same way. The
-PHOTOGRAPHER has walked to a different point around it.
-
 WHERE THE CAMERA IS
-${stand}
+Standing at ${bearing} o'clock on the set's clock face, at chest height, looking ${looking}.
 
-WHAT IS THEREFORE BEHIND THE MACHINE IN THIS FRAME
-${behindSubject}
-${edges}
-
-This is not a matter of interpretation. The camera has moved to a stated position in a place
-whose surroundings are listed above, so what appears behind the machine follows from geometry --
-render that, do not invent a new background and do not reuse the previous one. Never turn the
-machine to face the camera, never mirror the previous frame.
+The item has not moved between this photograph and the others -- not turned, not repositioned,
+not by a degree. The PHOTOGRAPHER walked to this bearing. Everything visible behind and beside
+the item follows from standing here and looking that way, given the set described below. Work it
+out from the set; do not invent a background, do not reuse the previous frame's background, and
+never mirror the previous frame.
 `.trim();
-
-/** Fallbacks when an item has no scene described, so the clause still reads sensibly. */
-const sceneOf = (f: ItemFacts) =>
-  f.scene ?? {
-    ahead: 'the open ground the machine faces',
-    behind: 'the wall or structure it is parked in front of',
-    left: 'the ground off its left side',
-    right: 'the ground off its right side',
-  };
 
 // --- freestanding: you can pick it up and turn it round -----------------------------------
 
@@ -252,41 +246,24 @@ const CABINET: Shot[] = [
 // --- rideable: you walk around it ----------------------------------------------------------
 
 const RIDEABLE: Shot[] = [
-  hero('Taken standing at the front-left corner, the way someone starts a walk-around. '),
+  hero("Taken standing at 10:30 on the set's clock face, looking back across the item toward 4:30 — where a walk-around starts. "),
   {
     key: 'front-right',
     label: 'Front-right corner',
     size: '1024x1024',
     brief: (f) =>
-      `${cap(f.description)}, photographed from its front-right corner.\n\n` +
-      walkAround(
-        f,
-        `Standing off the machine's front-right corner, looking back across it. The camera has ` +
-          `crossed from the front-left corner to the front-right one; it is on the opposite side ` +
-          `of the machine's nose from the previous frame.`,
-        `${cap(sceneOf(f).behind)} — the same thing that stood behind it before, because the ` +
-          `machine has not turned. It is seen from a different angle and is not centred the way ` +
-          `it was.`,
-        `Off to one edge of frame: ${sceneOf(f).right}. ${cap(sceneOf(f).left)} is now behind ` +
-          `the camera and must not appear.`,
-      )
+      `${cap(f.description)}, photographed from its front-right corner — the front and the right ` +
+      `flank both visible.\n\n${cameraAt('1:30', 'back across the item toward 6 o\'clock')}` +
+      placeClause(f)
   },
   {
     key: 'rear-left',
     label: 'Rear-left corner',
     size: '1024x1024',
     brief: (f) =>
-      `${cap(f.description)}, photographed from its rear-left corner. The back of the machine is ` +
-      `the subject now.\n\n` +
-      walkAround(
-        f,
-        `Standing behind the machine and off its left side, looking forward along it toward its ` +
-          `front end. The camera has walked all the way round to the back.`,
-        `${cap(sceneOf(f).ahead)} — because the camera now looks in the direction the machine ` +
-          `faces, what lies beyond its nose is what fills the background.`,
-        `Off to one edge of frame: ${sceneOf(f).left}. ${cap(sceneOf(f).behind)} is now behind ` +
-          `the camera and must not appear anywhere in this frame.`,
-      )
+      `${cap(f.description)}, photographed from its rear-left corner. The back of the item and ` +
+      `its left flank are the subject now.\n\n` +
+      `${cameraAt('7:30', 'forward across the item toward 12 o\'clock')}` + placeClause(f)
   },
   {
     key: 'controls',

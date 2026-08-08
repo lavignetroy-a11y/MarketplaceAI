@@ -172,12 +172,54 @@ export const ITEMS: Item[] = [
       'scuffing on the footplate',
     controls: 'the seat, steering wheel, and the blank unmarked control levers beside it',
     scrutiny: 'the underside edge of the cutting deck and the blade housing',
-    scene: {
-      ahead: 'the open driveway running down toward the street, with a low clipped hedge and a ' +
-        'quiet residential road beyond it',
-      behind: 'the closed sectional garage door, pale and flat, filling most of the width',
-      left: 'the low red brick house wall with a downpipe running down it',
-      right: 'a strip of mown lawn and a plain timber boundary fence beyond',
+    place: {
+      name:
+        'The concrete driveway of an ordinary single-storey red brick house, on a quiet ' +
+        'residential street. One location, photographed from several positions.',
+      ground:
+        'Plain grey concrete, laid in slabs with visible expansion joints, running the full ' +
+        'width of the drive. It meets a mown grass lawn along its right-hand edge in a straight ' +
+        'line, and runs away toward the street where it meets the road at a dropped kerb.',
+      structures: [
+        {
+          at: '6',
+          what:
+            'the garage: a pale cream sectional up-and-over door, closed, set into the SAME red ' +
+            'brick house wall as everything else on this elevation',
+          meets:
+            'The brickwork continues without a break from the left of the door, around the ' +
+            'door frame, and on to the right of it. The door is the only non-brick element on ' +
+            'this face of the building; there is no rendered, painted or white wall anywhere.',
+        },
+        {
+          at: '7-9',
+          what:
+            'the red brick house wall continuing away from the garage, with a plain downpipe ' +
+            'running down it and one small window',
+          meets:
+            'It is the same wall and the same brick as the garage surround — one continuous ' +
+            'building turning no corners within view.',
+        },
+        {
+          at: '2-4',
+          what: 'a plain vertical timber boundary fence, weathered grey-brown, about shoulder height',
+          meets: 'It stands beyond the lawn, running parallel to the drive.',
+        },
+        {
+          at: '12',
+          what:
+            'the driveway falling away to a quiet residential street, with a low clipped hedge ' +
+            'at the property edge and the roofline of a house opposite beyond it',
+        },
+      ],
+      fixtures: [
+        'The strip of mown lawn along the right-hand edge of the drive, between concrete and fence',
+        'The downpipe on the brick wall',
+        'The low clipped hedge at the street end of the drive',
+      ],
+      light:
+        'Soft, bright, lightly overcast midday. No hard sun, no strong cast shadows, the same ' +
+        'flat even daylight in every photograph.',
     },
     badLight: OUTDOOR_BAD_LIGHT,
     clutter: DRIVEWAY_CLUTTER,
@@ -198,11 +240,54 @@ export const ITEMS: Item[] = [
       'speckling on the trailer frame',
     controls: 'the helm seat, the wheel, and the blank unmarked throttle lever beside it',
     scrutiny: 'the outboard mounting bracket and the transom where it bolts through',
-    scene: {
-      ahead: 'the driveway falling away to the street, with a low hedge and parked cars beyond',
-      behind: 'the closed sectional garage door with the trailer tongue pointing at it',
-      left: 'the red brick house wall and a side gate',
-      right: 'mown lawn and a timber boundary fence',
+    place: {
+      name:
+        'The concrete driveway of an ordinary single-storey red brick house, on a quiet ' +
+        'residential street. One location, photographed from several positions.',
+      ground:
+        'Plain grey concrete, laid in slabs with visible expansion joints, running the full ' +
+        'width of the drive. It meets a mown grass lawn along its right-hand edge in a straight ' +
+        'line, and runs away toward the street where it meets the road at a dropped kerb.',
+      structures: [
+        {
+          at: '6',
+          what:
+            'the garage: a pale cream sectional up-and-over door, closed, set into the SAME red ' +
+            'brick house wall as everything else on this elevation',
+          meets:
+            'The brickwork continues without a break from the left of the door, around the ' +
+            'door frame, and on to the right of it. The door is the only non-brick element on ' +
+            'this face of the building; there is no rendered, painted or white wall anywhere.',
+        },
+        {
+          at: '7-9',
+          what:
+            'the red brick house wall continuing away from the garage, with a plain downpipe ' +
+            'running down it and one small window',
+          meets:
+            'It is the same wall and the same brick as the garage surround — one continuous ' +
+            'building turning no corners within view.',
+        },
+        {
+          at: '2-4',
+          what: 'a plain vertical timber boundary fence, weathered grey-brown, about shoulder height',
+          meets: 'It stands beyond the lawn, running parallel to the drive.',
+        },
+        {
+          at: '12',
+          what:
+            'the driveway falling away to a quiet residential street, with a low clipped hedge ' +
+            'at the property edge and the roofline of a house opposite beyond it',
+        },
+      ],
+      fixtures: [
+        'The strip of mown lawn along the right-hand edge of the drive, between concrete and fence',
+        'The downpipe on the brick wall',
+        'The low clipped hedge at the street end of the drive',
+      ],
+      light:
+        'Soft, bright, lightly overcast midday. No hard sun, no strong cast shadows, the same ' +
+        'flat even daylight in every photograph.',
     },
     badLight: OUTDOOR_BAD_LIGHT,
     clutter: DRIVEWAY_CLUTTER,
@@ -220,11 +305,54 @@ export const ITEMS: Item[] = [
     condition: 'mud dried into the tyre tread, scratched plastics, and a scuffed seat nose',
     controls: 'the handlebars, the seat, and the blank unmarked switch housings on the bars',
     scrutiny: 'the rear suspension arm and the underside of the rack mounting',
-    scene: {
-      ahead: 'the open driveway running down to a quiet residential street past a low hedge',
-      behind: 'the closed sectional garage door',
-      left: 'the red brick house wall',
-      right: 'a strip of mown lawn and a timber fence',
+    place: {
+      name:
+        'The concrete driveway of an ordinary single-storey red brick house, on a quiet ' +
+        'residential street. One location, photographed from several positions.',
+      ground:
+        'Plain grey concrete, laid in slabs with visible expansion joints, running the full ' +
+        'width of the drive. It meets a mown grass lawn along its right-hand edge in a straight ' +
+        'line, and runs away toward the street where it meets the road at a dropped kerb.',
+      structures: [
+        {
+          at: '6',
+          what:
+            'the garage: a pale cream sectional up-and-over door, closed, set into the SAME red ' +
+            'brick house wall as everything else on this elevation',
+          meets:
+            'The brickwork continues without a break from the left of the door, around the ' +
+            'door frame, and on to the right of it. The door is the only non-brick element on ' +
+            'this face of the building; there is no rendered, painted or white wall anywhere.',
+        },
+        {
+          at: '7-9',
+          what:
+            'the red brick house wall continuing away from the garage, with a plain downpipe ' +
+            'running down it and one small window',
+          meets:
+            'It is the same wall and the same brick as the garage surround — one continuous ' +
+            'building turning no corners within view.',
+        },
+        {
+          at: '2-4',
+          what: 'a plain vertical timber boundary fence, weathered grey-brown, about shoulder height',
+          meets: 'It stands beyond the lawn, running parallel to the drive.',
+        },
+        {
+          at: '12',
+          what:
+            'the driveway falling away to a quiet residential street, with a low clipped hedge ' +
+            'at the property edge and the roofline of a house opposite beyond it',
+        },
+      ],
+      fixtures: [
+        'The strip of mown lawn along the right-hand edge of the drive, between concrete and fence',
+        'The downpipe on the brick wall',
+        'The low clipped hedge at the street end of the drive',
+      ],
+      light:
+        'Soft, bright, lightly overcast midday. No hard sun, no strong cast shadows, the same ' +
+        'flat even daylight in every photograph.',
     },
     badLight: OUTDOOR_BAD_LIGHT,
     clutter: DRIVEWAY_CLUTTER,
