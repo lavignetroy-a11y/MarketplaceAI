@@ -9,7 +9,7 @@
     "lint": "next lint",
     "studio:generate": "tsx scripts/generate-studio-images.ts",
     "sync": "node scripts/sync.mjs",
-    "studio:try": "tsx scripts/try-item.mjs"
+    "studio:try": "tsx scripts/try-item.ts"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.112.2",
