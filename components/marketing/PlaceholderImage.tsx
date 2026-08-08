@@ -67,6 +67,8 @@ export function PlaceholderImage({
       ref={imgRef}
       src={src}
       alt={alt}
+      // Picked up by the Lightbox's document-level click delegate.
+      data-zoomable={decorative ? undefined : ''}
       className={`object-cover ${className}`}
       style={objectPosition ? { ...style, objectPosition } : style}
       onError={() => setFailedSrc(src)}

@@ -10,6 +10,7 @@ import { Pricing } from '@/components/marketing/Pricing';
 import { Trust } from '@/components/marketing/Trust';
 import { WhyItMatters } from '@/components/marketing/WhyItMatters';
 import { Stakes } from '@/components/marketing/Stakes';
+import { Lightbox } from '@/components/marketing/Lightbox';
 import { IconGradientDefs } from '@/components/marketing/primitives';
 
 // Section order follows the sales narrative: hook, why it matters, the differentiator, how
@@ -31,6 +32,7 @@ export default function Home() {
       <Faq />
       <FinalCta />
       <Footer />
+      <Lightbox />
     </main>
   );
 }
