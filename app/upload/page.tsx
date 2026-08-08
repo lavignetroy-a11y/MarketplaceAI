@@ -194,7 +194,7 @@ function UploadFlow() {
   async function handlePay() {
     if (!campaign) return;
     setError(null);
-    setSubmitting(true);
+    setPaying(true);
     try {
       // Try Stripe first. The server decides the price and creates the session; the browser only
       // follows the URL it gets back.
@@ -215,7 +215,7 @@ function UploadFlow() {
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Checkout failed.');
     } finally {
-      setSubmitting(false);
+      setPaying(false);
     }
   }
 
@@ -433,6 +433,18 @@ function UploadFlow() {
         ) : (
           <div className="mt-10">
             <ProgressPanel campaign={campaign} isProcessing={isProcessing} />
+
+            {/* Checkout failures land here. The form's error block is unmounted by this point,
+                so without this a failed payment updated state that nothing rendered -- which
+                looks exactly like the button doing nothing. */}
+            {error && (
+              <p
+                role="alert"
+                className="mt-6 rounded-brand border border-marketplace-error/30 bg-marketplace-error/[0.06] p-4 text-[0.875rem] text-marketplace-error"
+              >
+                {error}
+              </p>
+            )}
 
             {campaign.status === 'preview_ready' && preview?.image && (
               <PreviewGate
