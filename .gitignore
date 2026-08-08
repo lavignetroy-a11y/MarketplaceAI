@@ -10,3 +10,8 @@ npm-debug.log*
 
 # Visual harness output
 .shots/
+
+# Stripe CLI, if downloaded locally for webhook testing
+.stripe/
+stripe.zip
+stripe.exe
