@@ -193,17 +193,29 @@ function UploadFlow() {
 
   async function handlePay() {
     if (!campaign) return;
-    setPaying(true);
     setError(null);
+    setSubmitting(true);
     try {
-      const res = await fetch(`/api/campaigns/${campaign.id}/pay`, { method: 'POST' });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Checkout failed.');
-      setCampaign({ ...campaign, paid: true, status: 'generating' });
+      // Try Stripe first. The server decides the price and creates the session; the browser only
+      // follows the URL it gets back.
+      const res = await fetch(`/api/campaigns/${campaign.id}/checkout`, { method: 'POST' });
+      if (res.ok) {
+        const { url } = await res.json();
+        window.location.href = url;
+        return;
+      }
+      // 503 means this machine has no Stripe keys, so fall back to the development bypass. That
+      // route refuses to exist in production or whenever Stripe IS configured.
+      if (res.status === 503) {
+        const dev = await fetch(`/api/campaigns/${campaign.id}/pay`, { method: 'POST' });
+        if (!dev.ok) throw new Error((await dev.json()).error || 'Checkout failed.');
+        return;
+      }
+      throw new Error((await res.json()).error || 'Checkout failed.');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Checkout failed.');
     } finally {
-      setPaying(false);
+      setSubmitting(false);
     }
   }
 
