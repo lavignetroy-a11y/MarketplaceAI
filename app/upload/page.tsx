@@ -49,6 +49,14 @@ type CampaignState = {
   requestedCount: number;
   productSummary: { category: string; itemType: string; quantity: number } | null;
   minimumAdditionalEvidenceNeeded: string[];
+  /** Live counts during the paid phase. Null before it starts. etaSeconds is null until the
+   *  first image lands and there is a measured rate to extrapolate from. */
+  progress: {
+    total: number;
+    done: number;
+    failed: number;
+    etaSeconds: number | null;
+  } | null;
   results: ShotResult[];
   listingTitle: string | null;
   listingDescription: string | null;
@@ -83,6 +91,8 @@ function UploadFlow() {
   const [submitting, setSubmitting] = useState(false);
   const [paying, setPaying] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  /** Set when checkout fell through to the no-charge development path, so the page can say so. */
+  const [bypassed, setBypassed] = useState<string | null>(null);
   const [campaign, setCampaign] = useState<CampaignState | null>(null);
   const [restoring, setRestoring] = useState(Boolean(searchParams.get('campaign')));
 
@@ -179,6 +189,7 @@ function UploadFlow() {
         requestedCount: count,
         productSummary: null,
         minimumAdditionalEvidenceNeeded: [],
+        progress: null,
         results: [],
         listingTitle: null,
         listingDescription: null,
@@ -207,6 +218,14 @@ function UploadFlow() {
       // 503 means this machine has no Stripe keys, so fall back to the development bypass. That
       // route refuses to exist in production or whenever Stripe IS configured.
       if (res.status === 503) {
+        // Say so on screen. A bypass that looks identical to a successful purchase is how you end
+        // up believing payment works when it has never once run.
+        const { missing } = (await res.json()) as { missing?: string[] };
+        setBypassed(
+          missing?.length
+            ? `Payment was skipped: this server is missing ${missing.join(' and ')}.`
+            : 'Payment was skipped: Stripe is not configured on this server.',
+        );
         const dev = await fetch(`/api/campaigns/${campaign.id}/pay`, { method: 'POST' });
         if (!dev.ok) throw new Error((await dev.json()).error || 'Checkout failed.');
         // The bypass only reports that it worked -- it does not hand back the campaign. Nothing
@@ -454,6 +473,18 @@ function UploadFlow() {
               </p>
             )}
 
+            {bypassed && (
+              <p
+                role="status"
+                className="mt-6 rounded-brand border border-marketplace-warning/40 bg-marketplace-warning/[0.08] p-4 text-[0.875rem] text-marketplace-ink"
+              >
+                <span className="font-semibold">Development mode — no card was charged.</span>{' '}
+                {bypassed} Set both in{' '}
+                <code className="font-mono text-[0.8125rem]">.env.local</code> and restart the dev
+                server to run real checkout.
+              </p>
+            )}
+
             {campaign.status === 'preview_ready' && preview?.image && (
               <PreviewGate
                 preview={preview}
@@ -560,11 +591,71 @@ function ProgressPanel({
           )}
         </div>
       </div>
-      {isProcessing && (
-        <p className="mt-4 text-[0.8375rem] text-marketplace-muted">
-          This usually takes a couple of minutes. You can leave this page open.
-        </p>
+      {campaign.progress ? (
+        <GenerationProgress progress={campaign.progress} />
+      ) : (
+        isProcessing && (
+          <p className="mt-4 text-[0.8375rem] text-marketplace-muted">
+            This usually takes a couple of minutes. You can leave this page open.
+          </p>
+        )
       )}
+    </div>
+  );
+}
+
+/** "in about 3 min" reads better than a countdown, and doesn't promise precision we don't have. */
+function formatEta(seconds: number): string {
+  if (seconds <= 45) return 'under a minute';
+  const minutes = Math.round(seconds / 60);
+  return minutes <= 1 ? 'about a minute' : `about ${minutes} min`;
+}
+
+function GenerationProgress({
+  progress,
+}: {
+  progress: NonNullable<CampaignState['progress']>;
+}) {
+  const settled = progress.done + progress.failed;
+  const pct = progress.total ? Math.round((settled / progress.total) * 100) : 0;
+  const remaining = progress.total - settled;
+
+  return (
+    <div className="mt-5">
+      <div
+        className="h-2 w-full overflow-hidden rounded-full bg-marketplace-line/60"
+        role="progressbar"
+        aria-valuemin={0}
+        aria-valuemax={progress.total}
+        aria-valuenow={settled}
+        aria-label="Images generated"
+      >
+        <div
+          className="h-full rounded-full bg-marketplace-violet transition-[width] duration-700 ease-out"
+          style={{ width: `${pct}%` }}
+        />
+      </div>
+      <div className="mt-2.5 flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
+        <p className="text-[0.875rem] font-medium text-marketplace-ink">
+          {progress.done} of {progress.total} images ready
+          {progress.failed > 0 && (
+            <span className="font-normal text-marketplace-muted">
+              {' '}
+              &middot; {progress.failed} failed
+            </span>
+          )}
+        </p>
+        <p className="text-[0.8375rem] text-marketplace-muted">
+          {remaining <= 0
+            ? 'Finishing up'
+            : progress.etaSeconds === null
+              ? 'Estimating time remaining…'
+              : `${formatEta(progress.etaSeconds)} left`}
+        </p>
+      </div>
+      <p className="mt-2 text-[0.8125rem] text-marketplace-muted">
+        Images are generated a few at a time. You can leave this page open.
+      </p>
     </div>
   );
 }

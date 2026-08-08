@@ -1,7 +1,13 @@
 import { randomUUID } from 'crypto';
 import { getSupabaseAdminClient } from '@/lib/supabase/server';
 import { priceCents } from '@/lib/config/pricing';
-import type { CampaignJob, CampaignStatus, RequestedImageCount, SourcePhoto } from './types';
+import type {
+  CampaignJob,
+  CampaignProgress,
+  CampaignStatus,
+  RequestedImageCount,
+  SourcePhoto,
+} from './types';
 
 // Campaign state lives in two places, deliberately:
 //
@@ -51,6 +57,20 @@ export function updateJob(id: string, patch: Partial<CampaignJob>): void {
 
 export function setStatus(id: string, status: CampaignStatus, statusMessage?: string): void {
   updateJob(id, { status, statusMessage });
+}
+
+/**
+ * Records generation progress in memory only.
+ *
+ * Deliberately not `updateJob`: this fires once per generated image, and progress is ephemeral
+ * working state that no column in the database holds. Routing it through the normal path would
+ * buy a Supabase round-trip per image in exchange for storing nothing.
+ */
+export function setProgress(id: string, progress: CampaignProgress): void {
+  const job = jobs.get(id);
+  if (!job) return;
+  job.progress = progress;
+  job.updatedAt = Date.now();
 }
 
 /** Marks a campaign paid. Returns false if the campaign is unknown. */

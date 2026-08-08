@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getJob } from '@/lib/campaign/store';
 import { loadPersistedCampaign } from '@/lib/campaign/storage';
-import { CUSTOMER_STATUS_LABELS, type CampaignStatus } from '@/lib/campaign/types';
+import { CUSTOMER_STATUS_LABELS, etaSeconds, type CampaignStatus } from '@/lib/campaign/types';
 
 export const runtime = 'nodejs';
 
@@ -27,6 +27,8 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
       priceCents: persisted.priceCents,
       productSummary: null,
       minimumAdditionalEvidenceNeeded: [],
+      // Progress is in-process working state, so a campaign rebuilt from the database has none.
+      progress: null,
       results: persisted.results,
       listingTitle: persisted.listingTitle,
       listingDescription: persisted.listingDescription,
@@ -64,6 +66,16 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
         }
       : null,
     minimumAdditionalEvidenceNeeded: job.minimumAdditionalEvidenceNeeded ?? [],
+    // Only meaningful during the paid phase; null before it starts so the UI can tell the
+    // difference between "no estimate yet" and "nothing to estimate".
+    progress: job.progress
+      ? {
+          total: job.progress.total,
+          done: job.progress.done,
+          failed: job.progress.failed,
+          etaSeconds: etaSeconds(job.progress),
+        }
+      : null,
     results,
     // listing copy is part of the paid deliverable
     listingTitle: job.paid ? job.listingTitle ?? null : null,

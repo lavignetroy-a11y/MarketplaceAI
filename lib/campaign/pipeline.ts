@@ -6,10 +6,17 @@ import {
   editSourceImage,
   generateShotImage,
 } from './generateImages';
-import { getJob, persistImageResult, setStatus, updateJob } from './store';
+import { getJob, persistImageResult, setProgress, setStatus, updateJob } from './store';
 import { applyPreviewWatermark, bufferToDataUrl, dataUrlToBuffer } from './watermark';
 import { storeCampaignImage } from './storage';
-import type { GeneratedShotResult, ShotOrientation, ShotPlan, SourcePhoto } from './types';
+import {
+  GENERATION_CONCURRENCY,
+  type CampaignProgress,
+  type GeneratedShotResult,
+  type ShotOrientation,
+  type ShotPlan,
+  type SourcePhoto,
+} from './types';
 
 // The pipeline runs in two phases around the payment gate:
 //
@@ -86,6 +93,39 @@ async function generateOneShot(
       error: err instanceof Error ? err.message : 'Image generation failed.',
     };
   }
+}
+
+/**
+ * Runs `work` over every item with at most `limit` in flight, calling `onSettled` as each one
+ * lands. Results come back in input order regardless of the order they finished in.
+ *
+ * Written out rather than pulled in as a dependency because it is a dozen lines and the shape of
+ * it matters here: the shared cursor is what makes a worker pick up the next shot the instant it
+ * frees up, so the pool stays full instead of proceeding in lockstep waves.
+ */
+async function pool<T, R>(
+  items: T[],
+  limit: number,
+  work: (item: T) => Promise<R>,
+  onSettled: (result: R) => void,
+): Promise<R[]> {
+  const results = new Array<R>(items.length);
+  let cursor = 0;
+
+  async function worker(): Promise<void> {
+    for (;;) {
+      const i = cursor++;
+      if (i >= items.length) return;
+      const result = await work(items[i]);
+      results[i] = result;
+      onSettled(result);
+    }
+  }
+
+  await Promise.all(
+    Array.from({ length: Math.min(limit, items.length) }, () => worker()),
+  );
+  return results;
 }
 
 function openAiClient(jobId: string): OpenAI | null {
@@ -171,8 +211,8 @@ export async function runPreview(jobId: string): Promise<void> {
 }
 
 /**
- * Phase 2 -- paid. Generates every remaining shot in parallel and releases the clean hero.
- * Refuses to run unless the campaign has been marked paid.
+ * Phase 2 -- paid. Generates every remaining shot through a bounded pool, reporting progress as
+ * each lands, and releases the clean hero. Refuses to run unless the campaign has been marked paid.
  */
 export async function runFullCampaign(jobId: string): Promise<void> {
   const job = getJob(jobId);
@@ -202,11 +242,55 @@ export async function runFullCampaign(jobId: string): Promise<void> {
       : null;
     const heroOrientation = heroReference ? heroShot.orientation : null;
 
+    const pending = analysis.shots.slice(1);
+
+    // The hero is already finished and paid for, so it counts as done from the outset -- otherwise
+    // the bar would open at zero on a set that is genuinely one image in.
+    const progress: CampaignProgress = {
+      total: pending.length + 1,
+      done: 1,
+      failed: 0,
+      startedAt: Date.now(),
+      avgSeconds: null,
+    };
+    setProgress(jobId, progress);
     setStatus(jobId, 'generating');
-    const remaining = await Promise.all(
-      analysis.shots
-        .slice(1)
-        .map((shot) => generateOneShot(client, shot, job.sources, heroReference, heroOrientation)),
+
+    // Measured from real generations. A running mean beats a hardcoded guess, because how long a
+    // shot takes depends on size, load, and how many retries it ate.
+    //
+    // Samples under this floor are thrown away: a shot rejected by the guards at the top of
+    // generateOneShot returns in microseconds without ever calling the API, and averaging those
+    // in would report a few seconds remaining on a set with fifteen real images still to make.
+    const MIN_SAMPLE_SECONDS = 2;
+    let sampleCount = 0;
+    let sampleSeconds = 0;
+
+    const remaining = await pool(
+      pending,
+      GENERATION_CONCURRENCY,
+      async (shot) => {
+        const startedAt = Date.now();
+        const result = await generateOneShot(
+          client,
+          shot,
+          job.sources,
+          heroReference,
+          heroOrientation,
+        );
+        const elapsed = (Date.now() - startedAt) / 1000;
+        if (elapsed >= MIN_SAMPLE_SECONDS) {
+          sampleSeconds += elapsed;
+          sampleCount += 1;
+        }
+        return result;
+      },
+      (result) => {
+        if (result.status === 'done') progress.done += 1;
+        else progress.failed += 1;
+        progress.avgSeconds = sampleCount ? sampleSeconds / sampleCount : null;
+        setProgress(jobId, progress);
+      },
     );
 
     // The hero is no longer a preview -- payment releases the unwatermarked file.

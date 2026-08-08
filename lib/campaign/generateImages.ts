@@ -1,4 +1,5 @@
 import type OpenAI from 'openai';
+import { withPhotoContract } from './photoContract';
 import type { ShotOrientation, ShotPlan, SourcePhoto } from './types';
 
 const MAX_REFERENCE_IMAGES = 12;
@@ -40,7 +41,8 @@ export async function generateShotImage(
   const result = await client.images.edit({
     model,
     image: references,
-    prompt: shot.prompt,
+    // The camera moves in these modes, so the shot is composed fresh and the SETTING clause applies.
+    prompt: withPhotoContract(shot.prompt, shot.classification, false),
     n: 1,
     size: sizeForOrientation(shot.orientation),
     quality: 'high',
@@ -69,7 +71,7 @@ export async function editHeroImage(
   const result = await client.images.edit({
     model,
     image: toFile(heroReference),
-    prompt: shot.prompt,
+    prompt: withPhotoContract(shot.prompt, shot.classification, true),
     n: 1,
     size: sizeForOrientation(heroOrientation),
     quality: 'high',
@@ -98,7 +100,7 @@ export async function editSourceImage(
   const result = await client.images.edit({
     model,
     image: toFile(sourcePhoto),
-    prompt: shot.prompt,
+    prompt: withPhotoContract(shot.prompt, shot.classification, true),
     n: 1,
     size: sizeForOrientation(shot.orientation),
     quality: 'high',

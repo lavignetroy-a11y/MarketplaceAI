@@ -14,8 +14,29 @@ export async function POST(_req: NextRequest, { params }: { params: Promise<{ id
   const { id } = await params;
 
   if (!stripeConfigured()) {
+    // Both variables are required, and a half-configured server is the confusing case: checkout
+    // silently falls through to the development bypass and the seller gets the full set without
+    // ever seeing a payment page. Naming the missing variable turns a mystery into a one-line fix.
+    // Development only -- a production deploy should not be enumerating its own env for callers.
+    const missing = (
+      [
+        ['STRIPE_SECRET_KEY', process.env.STRIPE_SECRET_KEY],
+        ['STRIPE_WEBHOOK_SECRET', process.env.STRIPE_WEBHOOK_SECRET],
+      ] as const
+    )
+      .filter(([, v]) => !v)
+      .map(([name]) => name);
+
+    console.warn(
+      `[checkout] Stripe is not configured (missing: ${missing.join(', ')}). ` +
+        'Falling back to the development bypass -- no payment will be taken.',
+    );
+
     return NextResponse.json(
-      { error: 'Payments are not configured on this server.' },
+      {
+        error: 'Payments are not configured on this server.',
+        ...(process.env.NODE_ENV === 'production' ? {} : { missing }),
+      },
       { status: 503 },
     );
   }

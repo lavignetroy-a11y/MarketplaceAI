@@ -1,3 +1,30 @@
+/**
+ * How many images generate at once during the paid phase.
+ *
+ * Not unbounded, for three reasons: a large set fired all at once walks straight into the image
+ * API's rate limit (the studio run lost 32 images to exactly that), a bounded pool is what makes
+ * the progress bar and the time estimate mean anything, and a failure part-way through costs one
+ * wave rather than the whole set.
+ */
+export const GENERATION_CONCURRENCY = Math.max(
+  1,
+  Number(process.env.CAMPAIGN_CONCURRENCY) || 4,
+);
+
+/**
+ * Seconds still expected, or null when nothing has finished yet and there is no basis to guess.
+ * Images land roughly one wave at a time, so what remains is wave count times a measured wave.
+ */
+export function etaSeconds(
+  p: CampaignProgress,
+  concurrency = GENERATION_CONCURRENCY,
+): number | null {
+  const remaining = p.total - p.done - p.failed;
+  if (remaining <= 0) return 0;
+  if (p.avgSeconds === null) return null;
+  return Math.round(Math.ceil(remaining / concurrency) * p.avgSeconds);
+}
+
 /** Any count within the pricing counter's range -- see lib/config/pricing.ts. */
 export type RequestedImageCount = number;
 
@@ -94,6 +121,22 @@ export interface GeneratedShotResult {
   error?: string;
 }
 
+/**
+ * Live progress through the paid generation phase.
+ *
+ * This only means something because generation runs through a bounded pool rather than firing
+ * every shot at once. All-at-once would sit at 0% for the whole run and then jump to 100%, which
+ * is not progress -- it's a spinner with extra steps.
+ */
+export interface CampaignProgress {
+  total: number;
+  done: number;
+  failed: number;
+  startedAt: number;
+  /** Mean wall-clock seconds per finished image. Null until the first one lands. */
+  avgSeconds: number | null;
+}
+
 export interface SourcePhoto {
   fileName: string;
   mimeType: string;
@@ -111,6 +154,8 @@ export interface CampaignJob {
   statusMessage?: string;
   analysis?: AnalysisResult;
   results?: GeneratedShotResult[];
+  /** Present only while (and after) the paid phase runs. Working state -- not persisted. */
+  progress?: CampaignProgress;
   listingTitle?: string;
   listingDescription?: string;
   minimumAdditionalEvidenceNeeded?: string[];
