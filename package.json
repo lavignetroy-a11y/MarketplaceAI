@@ -7,7 +7,8 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "studio:generate": "tsx scripts/generate-studio-images.ts"
+    "studio:generate": "tsx scripts/generate-studio-images.ts",
+    "sync": "node scripts/sync.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.112.2",
