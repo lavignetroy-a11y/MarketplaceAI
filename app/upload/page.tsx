@@ -209,6 +209,14 @@ function UploadFlow() {
       if (res.status === 503) {
         const dev = await fetch(`/api/campaigns/${campaign.id}/pay`, { method: 'POST' });
         if (!dev.ok) throw new Error((await dev.json()).error || 'Checkout failed.');
+        // The bypass only reports that it worked -- it does not hand back the campaign. Nothing
+        // else will fetch it either: the poll is stopped because the preview is a terminal status.
+        // So re-read it here. That flips the page to paid, and once the full run puts the status
+        // back to a working one the poll starts again on its own.
+        const after = await fetch(`/api/campaigns/${campaign.id}`);
+        const state = await after.json();
+        if (!after.ok) throw new Error(state.error || 'Checkout failed.');
+        setCampaign(state as CampaignState);
         return;
       }
       throw new Error((await res.json()).error || 'Checkout failed.');
