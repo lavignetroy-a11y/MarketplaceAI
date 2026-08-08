@@ -55,7 +55,10 @@ export function CampaignReveal() {
           </div>
         </div>
 
-        <div className="grid gap-12 lg:grid-cols-[minmax(0,0.72fr)_minmax(0,1.28fr)] lg:gap-10">
+        {/* The left column is much shorter than the six-tile grid beside it. Top-aligned it left a
+            large void under the intro and the two halves stopped reading as one row; centred, the
+            copy sits against the middle of the set it describes. */}
+        <div className="grid gap-12 lg:grid-cols-[minmax(0,0.72fr)_minmax(0,1.28fr)] lg:items-center lg:gap-10">
           <div>
             <Eyebrow>Full campaign reveal</Eyebrow>
             <SectionTitle className="mt-5">
@@ -97,9 +100,14 @@ export function CampaignReveal() {
           <div
             id="campaign-reveal-set"
             role="tabpanel"
-            className="grid gap-3"
+            // Rows are bounded and the grid is capped. Without this the hero tile takes its
+            // height from a 2:3 portrait source and stretches the whole row past 1000px, which
+            // both bloats the section and strands the copy beside it in empty space. The images
+            // are object-cover, so a bounded row crops rather than distorts.
+            className="grid gap-3 lg:max-h-[600px]"
             style={{
               gridTemplateColumns: 'repeat(3, minmax(0, 1fr))',
+              gridTemplateRows: 'repeat(3, minmax(0, 1fr))',
               gridTemplateAreas: `
                 "hero hero alt"
                 "hero hero texture"
@@ -112,7 +120,7 @@ export function CampaignReveal() {
                 key={area}
                 src={`/images/reveal/${category}/v${variant}/slot-${si + 1}.webp`}
                 alt={labels[si]}
-                className={area === 'hero' ? 'min-h-[280px]' : 'min-h-[135px]'}
+                className={area === 'hero' ? 'min-h-[240px]' : 'min-h-[120px]'}
                 label={{
                   text: labels[si],
                   icon:
