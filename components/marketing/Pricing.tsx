@@ -14,6 +14,9 @@ import {
 } from '@/lib/config/pricing';
 import { VariantSwitcher, useVariant } from './VariantSwitcher';
 
+/** How many sample tiles the coverage grid shows, regardless of how high the range goes. */
+const GRID_TILES = 10;
+
 const INCLUDED = [
   'A coordinated set, not one edited photo',
   'The strongest image chosen for your first photo',
@@ -167,8 +170,12 @@ export function Pricing() {
               <p className="text-[0.9375rem] font-semibold tracking-[-0.015em] text-marketplace-ink">
                 Your set at {count} images
               </p>
+              {/* One tile per image stops working once the range runs to 30 -- it would turn a
+                  two-row block into a six-row one and unbalance the whole section. The grid is a
+                  sample of the set rather than an inventory of it, so it stays a fixed size and a
+                  line underneath carries the overflow. */}
               <div className="mt-4 grid grid-cols-5 gap-2">
-                {Array.from({ length: MAX_IMAGES }).map((_, i) => (
+                {Array.from({ length: GRID_TILES }).map((_, i) => (
                   <PhotoCard
                     key={i}
                     src={`/images/pricing/v${variant}/tile-${(i % 5) + 1}.webp`}
@@ -182,7 +189,9 @@ export function Pricing() {
                 ))}
               </div>
               <p className="mt-3 text-[0.8125rem] text-marketplace-muted">
-                Faded tiles show coverage you could add.
+                {count > GRID_TILES
+                  ? `Plus ${count - GRID_TILES} more images in your set.`
+                  : 'Faded tiles show coverage you could add.'}
               </p>
             </div>
           </div>

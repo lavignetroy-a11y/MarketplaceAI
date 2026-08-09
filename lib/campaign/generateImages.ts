@@ -1,6 +1,17 @@
 import type OpenAI from 'openai';
 import { withPhotoContract } from './photoContract';
-import type { ShotOrientation, ShotPlan, SourcePhoto } from './types';
+import type { ShotClassification, ShotOrientation, ShotPlan, SourcePhoto } from './types';
+
+/**
+ * How a shot's prompt is wrapped before it reaches the image model. Injectable so the A/B harness
+ * (scripts/ab-prompts.ts) can swap briefing strategies while holding the shot plan, the reference
+ * photographs, and every other variable fixed. Production always uses the default.
+ */
+export type ComposePrompt = (
+  prompt: string,
+  classification: ShotClassification,
+  preserveSetting: boolean,
+) => string;
 
 const MAX_REFERENCE_IMAGES = 12;
 
@@ -31,6 +42,7 @@ export async function generateShotImage(
   shot: ShotPlan,
   sources: SourcePhoto[],
   heroReference: SourcePhoto | null,
+  compose: ComposePrompt = withPhotoContract,
 ): Promise<string> {
   const model = process.env.OPENAI_IMAGE_MODEL || 'gpt-image-2';
 
@@ -42,7 +54,7 @@ export async function generateShotImage(
     model,
     image: references,
     // The camera moves in these modes, so the shot is composed fresh and the SETTING clause applies.
-    prompt: withPhotoContract(shot.prompt, shot.classification, false),
+    prompt: compose(shot.prompt, shot.classification, false),
     n: 1,
     size: sizeForOrientation(shot.orientation),
     quality: 'high',
@@ -65,13 +77,14 @@ export async function editHeroImage(
   shot: ShotPlan,
   heroReference: SourcePhoto,
   heroOrientation: ShotOrientation,
+  compose: ComposePrompt = withPhotoContract,
 ): Promise<string> {
   const model = process.env.OPENAI_IMAGE_MODEL || 'gpt-image-2';
 
   const result = await client.images.edit({
     model,
     image: toFile(heroReference),
-    prompt: withPhotoContract(shot.prompt, shot.classification, true),
+    prompt: compose(shot.prompt, shot.classification, true),
     n: 1,
     size: sizeForOrientation(heroOrientation),
     quality: 'high',
@@ -94,13 +107,14 @@ export async function editSourceImage(
   client: OpenAI,
   shot: ShotPlan,
   sourcePhoto: SourcePhoto,
+  compose: ComposePrompt = withPhotoContract,
 ): Promise<string> {
   const model = process.env.OPENAI_IMAGE_MODEL || 'gpt-image-2';
 
   const result = await client.images.edit({
     model,
     image: toFile(sourcePhoto),
-    prompt: withPhotoContract(shot.prompt, shot.classification, true),
+    prompt: compose(shot.prompt, shot.classification, true),
     n: 1,
     size: sizeForOrientation(shot.orientation),
     quality: 'high',

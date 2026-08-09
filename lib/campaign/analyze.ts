@@ -1,6 +1,7 @@
 import fs from 'fs';
 import path from 'path';
 import type OpenAI from 'openai';
+import { MAX_IMAGES, MIN_IMAGES } from '@/lib/config/pricing';
 import type { AnalysisResult, RequestedImageCount, SourcePhoto } from './types';
 
 const MASTER_PROMPT = fs.readFileSync(
@@ -21,6 +22,11 @@ Ignore the document's own internal JSON contract examples (source IDs like SOURC
 attachments_in_exact_order, etc.) -- this implementation uses a simpler output contract, defined
 entirely by the JSON schema attached to this request. Produce your answer to conform exactly to
 that schema.
+
+AUTHORITATIVE IMAGE-COUNT RANGE. This application sells any whole number of images from
+${MIN_IMAGES} to ${MAX_IMAGES} inclusive. Where the document above states a different range or
+names fixed packages, THIS overrides it. The count you are given is always valid; never argue
+with it, round it, or treat it as one of a fixed set of tiers.
 
 Requirements specific to this call:
 

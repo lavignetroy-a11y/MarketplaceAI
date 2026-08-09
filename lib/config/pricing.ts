@@ -4,9 +4,16 @@
 /** Price per generated image, in whole cents, to avoid floating-point money. */
 export const PRICE_PER_IMAGE_CENTS = 100;
 
-/** The counter's range. Buyers pick any count in between, not just preset packages. */
+/**
+ * The counter's range. Buyers pick any count in between, not just preset packages.
+ *
+ * This is the ONLY definition of the range. The analysis prompt is handed these numbers at
+ * runtime rather than stating a range of its own -- the master logic document has carried a
+ * hardcoded count in every revision, and when it drifted from this file the model was being
+ * briefed on packages the UI had never offered.
+ */
 export const MIN_IMAGES = 4;
-export const MAX_IMAGES = 10;
+export const MAX_IMAGES = 30;
 export const DEFAULT_IMAGES = 6;
 
 /** How many source photos one item's set may contain. */
@@ -23,17 +30,26 @@ export function formatPrice(cents: number): string {
   return cents % 100 === 0 ? `$${cents / 100}` : `$${(cents / 100).toFixed(2)}`;
 }
 
-/** Coverage labels shown against counts on the counter, so a number means something. */
-export const COVERAGE_NOTES: Record<number, { label: string; blurb: string }> = {
-  4: { label: 'Essential', blurb: 'A stronger first impression for simple listings.' },
-  5: { label: 'Essential+', blurb: 'One more angle for a little extra proof.' },
-  6: { label: 'Recommended', blurb: 'Right for most furniture and household items.' },
-  7: { label: 'Detailed', blurb: 'Extra coverage for items with more to show.' },
-  8: { label: 'Detailed+', blurb: 'For higher-value items where details matter.' },
-  9: { label: 'Comprehensive', blurb: 'Near-complete coverage of angles and condition.' },
-  10: { label: 'Maximum', blurb: 'For vehicles, equipment, and full sets.' },
-};
+/**
+ * Coverage labels shown against counts on the counter, so a number means something.
+ *
+ * Bands rather than one entry per number, because the range now runs to 30 and thirty bespoke
+ * blurbs would be thirty things to keep true. The bands deliberately mirror the count-adaptive
+ * priorities in the master logic document, so what a buyer is promised at a given number and what
+ * the planner is told to build at that number are the same idea.
+ */
+export const COVERAGE_BANDS: { upTo: number; label: string; blurb: string }[] = [
+  { upTo: 5, label: 'Essential', blurb: 'A stronger first impression for simple listings.' },
+  { upTo: 6, label: 'Recommended', blurb: 'Right for most furniture and household items.' },
+  { upTo: 8, label: 'Detailed', blurb: 'For higher-value items where details matter.' },
+  { upTo: 10, label: 'Comprehensive', blurb: 'Near-complete coverage of angles and condition.' },
+  { upTo: 15, label: 'Full campaign', blurb: 'Mechanisms, labels, and multiple condition areas.' },
+  { upTo: 20, label: 'Extensive', blurb: 'Every useful angle, with each question its own image.' },
+  { upTo: 30, label: 'Exhaustive', blurb: 'For vehicles, equipment, and large matching sets.' },
+];
 
 export function coverageFor(count: number) {
-  return COVERAGE_NOTES[count] ?? COVERAGE_NOTES[DEFAULT_IMAGES];
+  return (
+    COVERAGE_BANDS.find((b) => count <= b.upTo) ?? COVERAGE_BANDS[COVERAGE_BANDS.length - 1]
+  );
 }
