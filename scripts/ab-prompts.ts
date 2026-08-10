@@ -90,6 +90,7 @@ if (!dir) {
     --only marketing  compare only shots the arms actually differ on (recommended)
     --notes "..."     seller notes passed to the analysis
     --plan-only       plan and write prompts, generate nothing (free)
+    --force           generate even if the analysis says the photos are too thin (test only)
 
   Strategies:
 ${STRATEGIES.map((s) => `    ${s.id.padEnd(11)} ${s.name}`).join('\n')}
@@ -112,6 +113,10 @@ const qualities = (flag('quality')?.split(',') ?? ['low', 'high']).map((q) => {
 });
 const notes = flag('notes') ?? '';
 const planOnly = has('plan-only');
+
+// Proceed even when the analysis judges the photo set too thin to be truthful. Experiments only:
+// the point here is to render the same shots several ways, not to produce a listing.
+const force = has('force');
 
 // Evidence shots deliberately share one documentary contract across every arm, so including them
 // spends real money on columns that come back near-identical in all six rows. --only marketing
@@ -347,10 +352,27 @@ async function main() {
   await fs.writeFile(path.join(runDir, 'plan.json'), JSON.stringify(analysis, null, 2));
 
   if (!analysis.readyForGeneration) {
-    console.log(`\n  The analysis says it cannot proceed truthfully: ${analysis.reasonNotReady}`);
+    console.log(`\n  The analysis will not proceed truthfully: ${analysis.reasonNotReady}`);
     analysis.minimumAdditionalEvidenceNeeded.forEach((m) => console.log(`    - ${m}`));
-    console.log(`\n  Plan written to ${runDir}/plan.json\n`);
-    return;
+
+    // The gate is correct behaviour and production must always respect it -- an incomplete photo
+    // set is exactly when a generated listing starts inventing. But this harness exists to compare
+    // briefing strategies, and for that the plan only has to be good enough to render the same
+    // shots six ways. --force takes the best-effort plan the analysis returns anyway.
+    if (!force) {
+      console.log(
+        `\n  Add the photos above and rerun, or pass --force to compare strategies on the\n` +
+          `  best-effort plan anyway. Force is for experiments only -- the images it makes are\n` +
+          `  not fit to put in front of a buyer.\n`,
+      );
+      console.log(`  Plan written to ${runDir}/plan.json\n`);
+      return;
+    }
+    if (!analysis.shots?.length) {
+      console.log(`\n  --force given, but the analysis returned no shots to work from.\n`);
+      return;
+    }
+    console.log(`\n  --force: continuing on the best-effort plan. NOT fit for a real listing.`);
   }
 
   const id = analysis.productIdentity;
