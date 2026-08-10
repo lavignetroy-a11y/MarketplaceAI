@@ -1,6 +1,12 @@
 import type OpenAI from 'openai';
 import { withPhotoContract } from './photoContract';
-import type { ShotClassification, ShotOrientation, ShotPlan, SourcePhoto } from './types';
+import type {
+  ImageQuality,
+  ShotClassification,
+  ShotOrientation,
+  ShotPlan,
+  SourcePhoto,
+} from './types';
 
 /**
  * How a shot's prompt is wrapped before it reaches the image model. Injectable so the A/B harness
@@ -43,6 +49,7 @@ export async function generateShotImage(
   sources: SourcePhoto[],
   heroReference: SourcePhoto | null,
   compose: ComposePrompt = withPhotoContract,
+  quality: ImageQuality = 'high',
 ): Promise<string> {
   const model = process.env.OPENAI_IMAGE_MODEL || 'gpt-image-2';
 
@@ -57,7 +64,7 @@ export async function generateShotImage(
     prompt: compose(shot.prompt, shot.classification, false),
     n: 1,
     size: sizeForOrientation(shot.orientation),
-    quality: 'high',
+    quality,
   });
 
   const b64 = result.data?.[0]?.b64_json;
@@ -78,6 +85,7 @@ export async function editHeroImage(
   heroReference: SourcePhoto,
   heroOrientation: ShotOrientation,
   compose: ComposePrompt = withPhotoContract,
+  quality: ImageQuality = 'high',
 ): Promise<string> {
   const model = process.env.OPENAI_IMAGE_MODEL || 'gpt-image-2';
 
@@ -87,7 +95,7 @@ export async function editHeroImage(
     prompt: compose(shot.prompt, shot.classification, true),
     n: 1,
     size: sizeForOrientation(heroOrientation),
-    quality: 'high',
+    quality,
   });
 
   const b64 = result.data?.[0]?.b64_json;
@@ -108,6 +116,7 @@ export async function editSourceImage(
   shot: ShotPlan,
   sourcePhoto: SourcePhoto,
   compose: ComposePrompt = withPhotoContract,
+  quality: ImageQuality = 'high',
 ): Promise<string> {
   const model = process.env.OPENAI_IMAGE_MODEL || 'gpt-image-2';
 
@@ -117,7 +126,7 @@ export async function editSourceImage(
     prompt: compose(shot.prompt, shot.classification, true),
     n: 1,
     size: sizeForOrientation(shot.orientation),
-    quality: 'high',
+    quality,
   });
 
   const b64 = result.data?.[0]?.b64_json;

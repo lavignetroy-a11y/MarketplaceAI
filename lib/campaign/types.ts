@@ -32,6 +32,13 @@ export type ShotClassification = 'marketing' | 'evidence';
 
 export type ShotOrientation = 'square' | 'portrait' | 'landscape';
 
+/**
+ * Image API quality tier. Production always ships 'high'; 'low' exists because it is roughly
+ * thirty-five times cheaper, which makes it the sane way to check that a plan and a set of
+ * prompts do what you expect before committing real money to the same run at full quality.
+ */
+export type ImageQuality = 'low' | 'medium' | 'high';
+
 // source_edit: a specific original source photo already shows this shot's exact viewpoint, so
 //   that ONE photo is edited directly (lighting/background/crop only). This is the strongest
 //   guarantee against geometry errors (e.g. a mirrored/flipped steering wheel) because the model
