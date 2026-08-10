@@ -311,8 +311,13 @@ async function main() {
   const sources = await loadSources(dir!);
   const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
+  // The source folder's name goes in the run directory, not just a timestamp. Two runs launched
+  // in different windows within the same second would otherwise share a directory and quietly
+  // overwrite each other's images -- and running several items side by side is the normal way to
+  // use this, since a strategy that wins on upholstery may lose badly on metal.
   const stamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
-  const runDir = path.join(process.cwd(), 'studio-output', 'ab', stamp);
+  const slug = path.basename(path.resolve(dir!)).replace(/[^a-zA-Z0-9._-]/g, '-') || 'run';
+  const runDir = path.join(process.cwd(), 'studio-output', 'ab', `${stamp}-${slug}`);
   await fs.mkdir(path.join(runDir, 'prompts'), { recursive: true });
 
   console.log(`\n  ${sources.length} source photos from ${dir}`);
