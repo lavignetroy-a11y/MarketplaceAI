@@ -47,6 +47,7 @@ import {
   generateShotImage,
 } from '../lib/campaign/generateImages';
 import { STRATEGIES, strategyById, type PromptStrategy } from '../lib/campaign/strategies';
+import { MAX_IMAGES } from '../lib/config/pricing';
 import type { AnalysisResult, ImageQuality, ShotPlan, SourcePhoto } from '../lib/campaign/types';
 
 loadEnvConfig(process.cwd());
@@ -56,12 +57,28 @@ loadEnvConfig(process.cwd());
 // ---------------------------------------------------------------------------
 
 const argv = process.argv.slice(2);
-const dir = argv.find((a) => !a.startsWith('--'));
-const flag = (n: string) => {
+
+/**
+ * Everything between a flag and the next one, rejoined.
+ *
+ * `npm run ab -- ... --notes "two grey chairs"` loses its quotes on the way through PowerShell and
+ * npm, so the script receives `--notes two grey chairs` as four separate arguments. Reading only
+ * argv[i+1] silently takes the word "two" and drops the rest -- which is worse than failing,
+ * because the run proceeds on a truncated description and the plan comes back wrong.
+ */
+const flag = (n: string): string | undefined => {
   const i = argv.indexOf(`--${n}`);
-  return i === -1 ? undefined : argv[i + 1];
+  if (i === -1) return undefined;
+  const rest: string[] = [];
+  for (let j = i + 1; j < argv.length && !argv[j].startsWith('--'); j++) rest.push(argv[j]);
+  return rest.length ? rest.join(' ') : undefined;
 };
 const has = (n: string) => argv.includes(`--${n}`);
+
+// The folder is the only bare argument, and it has to be found before any flag consumes it.
+const flagStarts = argv.reduce<number[]>((acc, a, i) => (a.startsWith('--') ? [...acc, i] : acc), []);
+const firstFlag = flagStarts.length ? flagStarts[0] : argv.length;
+const dir = argv.slice(0, firstFlag).find((a) => !a.startsWith('--'));
 
 if (!dir) {
   console.error(`
@@ -70,6 +87,7 @@ if (!dir) {
     --count N         shots per arm (default 4)
     --arms a,b,c      which strategies to run (default: all)
     --quality a,b     tiers to run, in order (default: low,high)
+    --only marketing  compare only shots the arms actually differ on (recommended)
     --notes "..."     seller notes passed to the analysis
     --plan-only       plan and write prompts, generate nothing (free)
 
@@ -94,6 +112,11 @@ const qualities = (flag('quality')?.split(',') ?? ['low', 'high']).map((q) => {
 });
 const notes = flag('notes') ?? '';
 const planOnly = has('plan-only');
+
+// Evidence shots deliberately share one documentary contract across every arm, so including them
+// spends real money on columns that come back near-identical in all six rows. --only marketing
+// keeps the comparison on the shots the strategies actually differ on.
+const only = flag('only') as 'marketing' | 'evidence' | undefined;
 const arms: PromptStrategy[] = (flag('arms')?.split(',') ?? STRATEGIES.map((s) => s.id)).map(
   (id) => {
     const s = strategyById(id.trim());
@@ -307,8 +330,14 @@ async function main() {
   console.log(`  approx $${total.toFixed(2)} before reference-photo input tokens\n`);
 
   // --- one plan, shared by every arm -------------------------------------
-  console.log('  Analysing (one plan, reused by every arm)...');
-  const analysis: AnalysisResult = await analyzeCampaign(client, sources, count, notes);
+  // When filtering, ask for more shots than are needed so there are enough of the wanted kind to
+  // choose from. The planner decides its own marketing/evidence mix, so requesting exactly four
+  // and then discarding the evidence ones would leave the comparison short.
+  const planCount = only ? Math.min(count * 2 + 2, MAX_IMAGES) : count;
+
+  console.log(`  Analysing (one plan, reused by every arm)...`);
+  if (notes) console.log(`  Notes: "${notes}"`);
+  const analysis: AnalysisResult = await analyzeCampaign(client, sources, planCount, notes);
 
   await fs.writeFile(path.join(runDir, 'plan.json'), JSON.stringify(analysis, null, 2));
 
@@ -319,10 +348,41 @@ async function main() {
     return;
   }
 
-  console.log(`  Identified: ${analysis.productIdentity.itemType} (${analysis.productIdentity.category})`);
-  analysis.shots.forEach((s) =>
-    console.log(`    ${s.sequenceNumber}. ${s.imageRole} [${s.classification}/${s.productionMode}]`),
+  const id = analysis.productIdentity;
+  console.log(`\n  Identified: ${id.itemType} (${id.category})`);
+  console.log(`  Quantity:   ${id.quantity}${id.isMatchingSet ? ' (matching set)' : ''}`);
+
+  // Filter AFTER planning, so the plan itself stays the planner's own coherent campaign and only
+  // the subset we pay to compare is narrowed.
+  const all = analysis.shots;
+  // Shot 1 is always kept, whatever the filter says. Later shots in hero_edit and hero_reference
+  // mode are generated against it, so dropping it would strand them -- and it is the single most
+  // interesting shot to compare anyway, being the only one composed entirely from scratch.
+  const hero = all.find((s) => s.sequenceNumber === 1);
+  const rest = (only ? all.filter((s) => s.classification === only) : all).filter(
+    (s) => s !== hero,
   );
+  const chosen = [...(hero ? [hero] : []), ...rest].slice(0, count);
+
+  if (only && chosen.length < count) {
+    console.log(
+      `\n  Note: asked for ${count} ${only} shots but the plan only contains ` +
+        `${chosen.length}. Comparing those.`,
+    );
+  }
+
+  console.log('\n  Plan:');
+  all.forEach((s) => {
+    const used = chosen.includes(s);
+    console.log(
+      `    ${used ? '*' : ' '} ${s.sequenceNumber}. ${s.imageRole} ` +
+        `[${s.classification}/${s.productionMode}]`,
+    );
+  });
+  if (only) console.log(`\n  (* = compared; the rest are planned but not generated)`);
+
+  // Every arm generates this same subset.
+  analysis.shots = chosen;
 
   // --- write every arm's prompts, whether or not we generate --------------
   for (const arm of arms) {
