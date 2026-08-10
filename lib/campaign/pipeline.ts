@@ -9,6 +9,7 @@ import {
 import { getJob, persistImageResult, setProgress, setStatus, updateJob } from './store';
 import { applyPreviewWatermark, bufferToDataUrl, dataUrlToBuffer } from './watermark';
 import { storeCampaignImage } from './storage';
+import { readSceneFromHero, sceneClause, type SceneLock } from './sceneLock';
 import {
   GENERATION_CONCURRENCY,
   type CampaignProgress,
@@ -33,6 +34,7 @@ async function generateOneShot(
   sources: SourcePhoto[],
   heroReference: SourcePhoto | null,
   heroOrientation: ShotOrientation | null,
+  scene: SceneLock | null = null,
 ): Promise<GeneratedShotResult> {
   const needsHero = shot.productionMode === 'hero_edit' || shot.productionMode === 'hero_reference';
   if (needsHero && (!heroReference || !heroOrientation)) {
@@ -58,23 +60,31 @@ async function generateOneShot(
     };
   }
 
+  // The locked scene is prepended to the shot text so it carries the shot's precedence. Passing
+  // the hero as a reference image was supposed to hold the room together and does not -- an edit
+  // model handed several references averages them rather than matching one, which is how a dining
+  // table ended up present in one frame of a set and absent from the next.
+  const staged: ShotPlan = scene
+    ? { ...shot, prompt: `${sceneClause(scene)}\n\n${shot.prompt}` }
+    : shot;
+
   try {
     let image: string;
-    if (shot.productionMode === 'source_edit') {
-      image = await editSourceImage(client, shot, sources[shot.sourcePhotoIndex as number]);
-    } else if (shot.productionMode === 'hero_edit') {
+    if (staged.productionMode === 'source_edit') {
+      image = await editSourceImage(client, staged, sources[staged.sourcePhotoIndex as number]);
+    } else if (staged.productionMode === 'hero_edit') {
       image = await editHeroImage(
         client,
-        shot,
+        staged,
         heroReference as SourcePhoto,
         heroOrientation as ShotOrientation,
       );
     } else {
       image = await generateShotImage(
         client,
-        shot,
+        staged,
         sources,
-        shot.productionMode === 'hero_reference' ? heroReference : null,
+        staged.productionMode === 'hero_reference' ? heroReference : null,
       );
     }
     return {
@@ -242,6 +252,19 @@ export async function runFullCampaign(jobId: string): Promise<void> {
       : null;
     const heroOrientation = heroReference ? heroShot.orientation : null;
 
+    // Read the room out of the approved hero once, then hand the same text to every remaining
+    // shot. This is what makes the set look like one afternoon's work rather than five houses.
+    let scene: SceneLock | null = null;
+    if (heroReference) {
+      try {
+        scene = await readSceneFromHero(client, heroReference.data, analysis);
+      } catch (err) {
+        // Continuity is a large improvement, not a precondition. If the reader fails, the set is
+        // still generated -- it just goes back to being as loose as it was before.
+        console.error('Scene lock failed; continuing without it:', err);
+      }
+    }
+
     const pending = analysis.shots.slice(1);
 
     // The hero is already finished and paid for, so it counts as done from the outset -- otherwise
@@ -277,6 +300,7 @@ export async function runFullCampaign(jobId: string): Promise<void> {
           job.sources,
           heroReference,
           heroOrientation,
+          scene,
         );
         const elapsed = (Date.now() - startedAt) / 1000;
         if (elapsed >= MIN_SAMPLE_SECONDS) {

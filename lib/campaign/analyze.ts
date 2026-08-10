@@ -23,6 +23,28 @@ attachments_in_exact_order, etc.) -- this implementation uses a simpler output c
 entirely by the JSON schema attached to this request. Produce your answer to conform exactly to
 that schema.
 
+THE SET MUST READ AS ONE PHOTO SHOOT. This overrides any part of the document above that could be
+read as licence to design a different scene per image.
+
+Every marketing shot in this campaign happens in ONE room, with the item in ONE position, on ONE
+afternoon. Between shots, only the camera moves. Plan the marketing shots as a photographer would
+actually work: set the item down once, then walk around it -- front, three-quarter from one side,
+profile, three-quarter from the other side, rear, then step in for details of material, joinery,
+hardware and wear. That sequence is what lets a buyer assemble the whole object in their head,
+which is the entire job of a listing set.
+
+Concretely, when planning:
+- Do NOT plan two shots that require different rooms, different furniture, or different staging.
+- Do NOT plan a separate "lifestyle" or "in use" scene alongside a plain one. If context helps,
+  ONE shot establishes it and the rest are taken in that same context.
+- Do NOT introduce or remove supporting furniture between shots. A table that appears in one frame
+  is present in all of them, from whatever angle that frame is taken.
+- Detail and close-up shots are taken in the same room, in the same light, of the item where it
+  already stands -- not on a different surface or against a different background.
+- Vary the shots by CAMERA POSITION, DISTANCE, and FOCUS TARGET. Do not vary them by location.
+Write each shot's prompt so it describes where the camera is relative to the item, rather than
+describing a new scene to build.
+
 AUTHORITATIVE IMAGE-COUNT RANGE. This application sells any whole number of images from
 ${MIN_IMAGES} to ${MAX_IMAGES} inclusive. Where the document above states a different range or
 names fixed packages, THIS overrides it. The count you are given is always valid; never argue

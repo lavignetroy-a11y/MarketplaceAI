@@ -4,7 +4,7 @@
  *   npm run ab -- ./test-photos/chairs
  *   npm run ab -- ./test-photos/chairs --count 4
  *   npm run ab -- ./test-photos/chairs --arms current,accident,habitat
- *   npm run ab -- ./test-photos/chairs --quality high        (skip the low pass)
+ *   npm run ab -- ./test-photos/chairs --quality low,high    (default is low only)
  *   npm run ab -- ./test-photos/chairs --notes "Two dining chairs, some staining on the seats"
  *   npm run ab -- ./test-photos/chairs --plan-only
  *
@@ -46,6 +46,7 @@ import {
   editSourceImage,
   generateShotImage,
 } from '../lib/campaign/generateImages';
+import { readSceneFromHero, sceneClause, type SceneLock } from '../lib/campaign/sceneLock';
 import { STRATEGIES, strategyById, type PromptStrategy } from '../lib/campaign/strategies';
 import { MAX_IMAGES } from '../lib/config/pricing';
 import type { AnalysisResult, ImageQuality, ShotPlan, SourcePhoto } from '../lib/campaign/types';
@@ -86,7 +87,7 @@ if (!dir) {
 
     --count N         shots per arm (default 4)
     --arms a,b,c      which strategies to run (default: all)
-    --quality a,b     tiers to run, in order (default: low,high)
+    --quality a,b     tiers to run, in order (default: low)
     --only marketing  compare only shots the arms actually differ on (recommended)
     --notes "..."     seller notes passed to the analysis
     --plan-only       plan and write prompts, generate nothing (free)
@@ -103,7 +104,10 @@ const count = Number(flag('count') ?? 4);
 // Low first, deliberately: it costs pennies, so a broken plan or a broken arm surfaces before the
 // expensive pass has spent anything.
 const QUALITIES: ImageQuality[] = ['low', 'medium', 'high'];
-const qualities = (flag('quality')?.split(',') ?? ['low', 'high']).map((q) => {
+// Low only by default. Iterating on prompt architecture at 35x the price buys nothing: the
+// problems worth fixing right now -- scene continuity, shot coverage, staging -- are all visible
+// at low quality. Pass --quality high explicitly once the structure is right.
+const qualities = (flag('quality')?.split(',') ?? ['low']).map((q) => {
   const t = q.trim() as ImageQuality;
   if (!QUALITIES.includes(t)) {
     console.error(`Unknown quality "${t}". Known: ${QUALITIES.join(', ')}`);
@@ -174,24 +178,32 @@ async function generate(
   heroOrientation: ShotPlan['orientation'] | null,
   strategy: PromptStrategy,
   quality: ImageQuality,
+  scene: SceneLock | null,
 ): Promise<string> {
-  if (shot.productionMode === 'source_edit' && shot.sourcePhotoIndex !== null) {
+  // The scene lock is prepended to the SHOT text rather than folded into the style contract, so it
+  // inherits the shot's precedence. A contract that suggests "an ordinary well-kept home" and a
+  // lock that names one specific room cannot both be advisory -- the lock has to win.
+  const staged: ShotPlan = scene
+    ? { ...shot, prompt: `${sceneClause(scene)}\n\n${shot.prompt}` }
+    : shot;
+
+  if (staged.productionMode === 'source_edit' && staged.sourcePhotoIndex !== null) {
     return editSourceImage(
       client,
-      shot,
-      sources[shot.sourcePhotoIndex],
+      staged,
+      sources[staged.sourcePhotoIndex],
       strategy.compose,
       quality,
     );
   }
-  if (shot.productionMode === 'hero_edit' && hero && heroOrientation) {
-    return editHeroImage(client, shot, hero, heroOrientation, strategy.compose, quality);
+  if (staged.productionMode === 'hero_edit' && hero && heroOrientation) {
+    return editHeroImage(client, staged, hero, heroOrientation, strategy.compose, quality);
   }
   return generateShotImage(
     client,
-    shot,
+    staged,
     sources,
-    shot.productionMode === 'hero_reference' ? hero : null,
+    staged.productionMode === 'hero_reference' ? hero : null,
     strategy.compose,
     quality,
   );
@@ -455,6 +467,9 @@ async function main() {
       // what the tier does to the shot the whole set is anchored on.
       let hero: SourcePhoto | null = null;
       let heroOrientation: ShotPlan['orientation'] | null = null;
+      // Read out of this arm's OWN hero, not shared. Each arm builds a different room, and telling
+      // one arm to match another arm's room would destroy the thing being compared.
+      let scene: SceneLock | null = null;
 
       for (const shot of analysis.shots) {
         const label = `${String(shot.sequenceNumber).padStart(2, '0')}-${shot.imageRole}`;
@@ -468,13 +483,25 @@ async function main() {
             heroOrientation,
             arm,
             quality,
+            scene,
           );
           const file = path.join(armDir, `${label}.png`);
-          await fs.writeFile(file, dataUrlToSourcePhoto(image, `${label}.png`).data);
+          const png = dataUrlToSourcePhoto(image, `${label}.png`).data;
+          await fs.writeFile(file, png);
           files.push(file);
           if (shot.sequenceNumber === 1) {
             hero = dataUrlToSourcePhoto(image, 'hero.png');
             heroOrientation = shot.orientation;
+            // One extra text call per arm, and it is what makes the remaining shots belong to the
+            // same shoot. Derived from the hero that actually exists rather than from the plan,
+            // because the plan describes a room somebody intended and the hero is the room that
+            // got built.
+            process.stdout.write('reading scene... ');
+            scene = await readSceneFromHero(client, png, analysis);
+            await fs.writeFile(
+              path.join(armDir, 'scene-lock.json'),
+              JSON.stringify(scene, null, 2),
+            );
           }
           done += 1;
           console.log('ok');
