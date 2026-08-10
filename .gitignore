@@ -11,6 +11,11 @@ npm-debug.log*
 # Visual harness output
 .shots/
 
+# Generated test images and the source photos fed to them. These run to hundreds of
+# megabytes and are experiment artifacts, not source -- keep them out of the repo.
+studio-output/
+test-photos/
+
 # Stripe CLI, if downloaded locally for webhook testing
 .stripe/
 stripe.zip
