@@ -74,6 +74,15 @@ export interface ShotPlan {
   referenceSourceIndices: number[];
   /** full_set establishes quantity, representative shows one unit whole, detail goes close in. */
   subjectScope: SubjectScope;
+  /**
+   * How much of this view came from the photographs.
+   *   photographed    a source covers this view
+   *   interpolated    completed from partly visible surfaces, symmetry, or continuous structure
+   *   model_completed completed from knowledge of this identified mass-produced product
+   * Anything past 'photographed' owes the seller a coverage note, so they know which images are
+   * representations rather than photographs of their specific unit.
+   */
+  inferenceLevel: 'photographed' | 'interpolated' | 'model_completed';
   /** Where the photographer stands, relative to the item's fixed 12 o'clock front. */
   cameraPose: string;
   orientation: ShotOrientation;

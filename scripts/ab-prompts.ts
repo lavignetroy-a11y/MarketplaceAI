@@ -414,12 +414,18 @@ async function main() {
   all.forEach((s) => {
     const used = chosen.includes(s);
     console.log(
-      `    ${used ? '*' : ' '} ${String(s.sequenceNumber).padStart(2)}. ${s.imageRole.padEnd(28)} ` +
-        `[${s.subjectScope ?? '?'}/${s.productionMode}]  ${s.cameraPose ?? ''}`,
+      `    ${used ? '*' : ' '} ${String(s.sequenceNumber).padStart(2)}. ${s.imageRole.padEnd(26)} ` +
+        `[${s.subjectScope ?? '?'}/${s.productionMode}] ` +
+        `${(s.inferenceLevel ?? 'photographed') === 'photographed' ? '   ' : ' ~ '}` +
+        `${(s.inferenceLevel ?? '').padEnd(16)} ${s.cameraPose ?? ''}`,
     );
   });
+  const inferred = all.filter((s) => (s.inferenceLevel ?? 'photographed') !== 'photographed');
+  if (inferred.length) {
+    console.log(`\n  ~ marks ${inferred.length} shot(s) completed beyond what the photos show.`);
+  }
   if (analysis.coverageNotes?.length) {
-    console.log('\n  Coverage notes (what the photos could not support):');
+    console.log('\n  Coverage notes (told to the seller):');
     analysis.coverageNotes.forEach((n) => console.log(`    - ${n}`));
   }
   if (only) console.log(`\n  (* = compared; the rest are planned but not generated)`);

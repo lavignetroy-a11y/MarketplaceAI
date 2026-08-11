@@ -125,6 +125,57 @@ Requirements specific to this call:
   itself must restate the product truth lock, the permitted enhancements, the forbidden changes,
   and the never-generate list as they apply to that specific shot -- do not write a short prompt
   that assumes shared context.
+EVIDENCE AND INFERENCE. This section overrides the document above wherever that document treats
+any reconstruction beyond what is directly photographed as invention. It is not. There are three
+tiers, and they carry very different risk.
+
+TIER 1 -- CONTINUITY. ALWAYS ALLOWED.
+If the uploads plausibly show the same object, they show the same object. Do not treat a different
+angle, different lighting, different room, or a different level of zoom as evidence of a different
+item, and do not refuse or hedge on identity because no single photograph shows everything. Resolve
+them into one object unless something visible actually contradicts that -- a different colour, a
+different form, a mark present in one and absent from a view that would have shown it.
+
+TIER 2 -- INTERPOLATION. ALLOWED.
+Where a surface is partly visible, or where the object's own structure makes the unseen part
+determinate, complete it. A chair photographed from the front-left, whose front-right is partly in
+frame, has a front-right that follows from what is already visible. Symmetric objects, repeating
+elements, and continuous surfaces are all determinate in this way. This is reading the evidence,
+not inventing beyond it.
+Interpolation is bounded by symmetry and continuity ONLY. It does not extend to a face of the
+object no view touches at all, or to anything that could differ without contradicting a photograph
+-- a rear panel that might carry a vent, a label, or damage nobody photographed.
+
+TIER 3 -- MODEL COMPLETION. ALLOWED, WITH CONDITIONS.
+When the item is a mass-produced product whose exact identity is established -- year, make and
+model of a vehicle; a named appliance or tool model -- general knowledge of what that product
+looks like may be used to complete views the photographs do not cover, so the buyer gets a full
+set instead of a partial one. Use it.
+Conditions, all of which must hold:
+  - Identity must be ESTABLISHED, not guessed. If the photographs and notes do not pin the model,
+    and variants of that model differ in the area being completed, do not complete it. A 2011
+    Panamera came in trims with different rear bumpers and exhaust outlets; completing a rear view
+    without knowing the trim produces a different car's back end.
+  - The item's own CONDITION carries over. A completed panel is not a clean panel. Whatever wear,
+    fading, dirt, oxidation, and finish level the photographed surfaces show, the completed surface
+    shows too, because it is the same object of the same age with the same history. A pristine
+    inferred surface beside worn photographed ones is both a visual tell and a false impression.
+  - Never complete anything that constitutes a CLAIM rather than a shape: number plates, VINs,
+    serial numbers, odometer readings, hallmarks, model badges, capacity stamps, weight markings,
+    or any lettering not legible in a source photograph. Those are specifications and identifiers,
+    not geometry, and getting one wrong misstates what is being sold. Frame or crop so that
+    unreadable text stays unreadable rather than resolving it into something invented.
+  - Never complete a view whose whole purpose is to disclose condition. An underside, a damage
+    close-up, or a wear detail exists to show what is actually there; a completed one shows what
+    the factory shipped, which is the opposite of its job.
+
+Set "inferenceLevel" on every shot: "photographed" when a source covers the view, "interpolated"
+for Tier 2, "model_completed" for Tier 3.
+Every shot at "model_completed" must also produce a plain-language entry in coverageNotes naming
+what was completed and why, e.g. "No photo of the passenger side was provided, so that view is
+based on the known shape of this model rather than a photograph of this specific car." The seller
+needs to know which images are representations so they can say so.
+
 - MISSING EVIDENCE: SUBSTITUTE, DO NOT REFUSE. If a shot you wanted cannot be supported by the
   photographs -- no rear view, no underside, no engine bay, no label -- do not stop the campaign
   and do not invent the view. Drop that candidate, take the next supported shot down the category
@@ -207,6 +258,12 @@ const analysisSchema = {
           referenceSourceIndices: { type: 'array', items: { type: 'integer' } },
           // full_set establishes quantity; representative shows one unit whole; detail goes close.
           subjectScope: { type: 'string', enum: ['full_set', 'representative', 'detail'] },
+          // How much of this view comes from the photographs versus from reasoning about the
+          // object. Drives what the seller is told about which images are representations.
+          inferenceLevel: {
+            type: 'string',
+            enum: ['photographed', 'interpolated', 'model_completed'],
+          },
           // Where the photographer is standing, relative to the item's fixed front.
           cameraPose: { type: 'string' },
           orientation: { type: 'string', enum: ['square', 'portrait', 'landscape'] },
@@ -222,6 +279,7 @@ const analysisSchema = {
           'sourcePhotoIndex',
           'referenceSourceIndices',
           'subjectScope',
+          'inferenceLevel',
           'cameraPose',
           'orientation',
           'prompt',
@@ -329,6 +387,28 @@ export async function analyzeCampaign(
         shot.productionMode = 'hero_reference';
         shot.sourcePhotoIndex = null;
       }
+    }
+
+    // A completed view of a condition-disclosure shot defeats the shot's entire purpose: it shows
+    // what the factory shipped rather than what is actually there. Downgrade rather than ship it.
+    for (const shot of parsed.shots) {
+      if (shot.classification === 'evidence' && shot.inferenceLevel === 'model_completed') {
+        problems.push(
+          `shot ${shot.sequenceNumber} (${shot.imageRole}) is evidence but was planned as ` +
+            'model-completed, which would show the factory condition rather than the real one',
+        );
+        shot.inferenceLevel = 'interpolated';
+      }
+    }
+
+    // Anything completed beyond the photographs owes the seller a note. Silence here is how a
+    // representation gets mistaken for a photograph of their own unit.
+    const completed = parsed.shots.filter((s) => s.inferenceLevel === 'model_completed');
+    if (completed.length && !parsed.coverageNotes?.length) {
+      problems.push(
+        `${completed.length} shot(s) were completed from model knowledge but no coverage note ` +
+          'was written for the seller',
+      );
     }
 
     const multiUnit = parsed.productIdentity.quantity > 1;
