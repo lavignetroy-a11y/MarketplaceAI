@@ -10,7 +10,7 @@ const MASTER_PROMPT = fs.readFileSync(
   'utf-8',
 );
 
-const SYSTEM_PROMPT = `${MASTER_PROMPT}
+const SYSTEM_PROMPT = (INFERENCE_POLICY: string) => `${MASTER_PROMPT}
 
 ======================================================================
 IMPLEMENTATION NOTE (read this section last, it overrides formatting only)
@@ -125,7 +125,38 @@ Requirements specific to this call:
   itself must restate the product truth lock, the permitted enhancements, the forbidden changes,
   and the never-generate list as they apply to that specific shot -- do not write a short prompt
   that assumes shared context.
-EVIDENCE AND INFERENCE. This section overrides the document above wherever that document treats
+${INFERENCE_POLICY}
+
+- MISSING EVIDENCE: SUBSTITUTE, DO NOT REFUSE. If a shot you wanted cannot be supported by the
+  photographs -- no rear view, no underside, no engine bay, no label -- do not stop the campaign
+  and do not invent the view. Drop that candidate, take the next supported shot down the category
+  list, and keep the count exactly as purchased. Record what you dropped and what replaced it in
+  "coverageNotes", in plain language a seller would understand, e.g. "No underside photo was
+  provided, so an extra upholstery close-up was included instead." Never mention prompts, source
+  indices, or internal terminology there.
+- Set readyForGeneration to false ONLY when the core listing truth itself cannot be established:
+  the quantity is fundamentally ambiguous, the photographs appear to show different items, the
+  subject is mostly concealed, or the purchased count cannot be filled without duplicating a shot
+  or inventing an unseen view. One desirable view being unavailable is NOT a reason to refuse --
+  it is a reason to substitute. When you do refuse, explain why in reasonNotReady, list the precise
+  minimum additional evidence needed, and still return a best-effort "shots" array.
+- Do not include any internal stage names, QA scores, or retry mechanics in listingTitle or
+  listingDescription -- those are customer-facing text.`;
+
+/**
+ * The two inference policies, switchable so they can be compared on the same photographs.
+ *
+ * v4 is the conservative position: anything not directly photographed is treated as invention and
+ * the campaign substitutes a different supported shot instead. Safe, and it costs real coverage --
+ * it is what made a five-photo car listing refuse outright rather than produce a set.
+ *
+ * v5 separates three things v4 conflates. Deciding two photographs show the same object is not
+ * invention. Completing a partly visible or symmetric surface is not invention. Using knowledge of
+ * an identified mass-produced product to complete a view is a real extrapolation, and it is allowed
+ * under conditions -- established identity, condition carried across, no completed text, no
+ * completed condition-disclosure shot -- with the seller told which images are representations.
+ */
+const INFERENCE_V5 = `EVIDENCE AND INFERENCE. This section overrides the document above wherever that document treats
 any reconstruction beyond what is directly photographed as invention. It is not. There are three
 tiers, and they carry very different risk.
 
@@ -174,23 +205,21 @@ for Tier 2, "model_completed" for Tier 3.
 Every shot at "model_completed" must also produce a plain-language entry in coverageNotes naming
 what was completed and why, e.g. "No photo of the passenger side was provided, so that view is
 based on the known shape of this model rather than a photograph of this specific car." The seller
-needs to know which images are representations so they can say so.
+needs to know which images are representations so they can say so.`;
 
-- MISSING EVIDENCE: SUBSTITUTE, DO NOT REFUSE. If a shot you wanted cannot be supported by the
-  photographs -- no rear view, no underside, no engine bay, no label -- do not stop the campaign
-  and do not invent the view. Drop that candidate, take the next supported shot down the category
-  list, and keep the count exactly as purchased. Record what you dropped and what replaced it in
-  "coverageNotes", in plain language a seller would understand, e.g. "No underside photo was
-  provided, so an extra upholstery close-up was included instead." Never mention prompts, source
-  indices, or internal terminology there.
-- Set readyForGeneration to false ONLY when the core listing truth itself cannot be established:
-  the quantity is fundamentally ambiguous, the photographs appear to show different items, the
-  subject is mostly concealed, or the purchased count cannot be filled without duplicating a shot
-  or inventing an unseen view. One desirable view being unavailable is NOT a reason to refuse --
-  it is a reason to substitute. When you do refuse, explain why in reasonNotReady, list the precise
-  minimum additional evidence needed, and still return a best-effort "shots" array.
-- Do not include any internal stage names, QA scores, or retry mechanics in listingTitle or
-  listingDescription -- those are customer-facing text.`;
+const INFERENCE_V4 = `EVIDENCE AND INFERENCE -- CONSERVATIVE.
+
+Only views the photographs actually cover may be produced. Where a view is not covered, do not
+reconstruct it from the object's likely shape, from symmetry, or from knowledge of what this model
+of product normally looks like. Drop that candidate and take the next supported shot down the
+category list instead, keeping the purchased count unchanged, and record the substitution in
+coverageNotes.
+
+Where the photographs leave something ambiguous, keep it ambiguous: crop before the unsupported
+information becomes material, or use natural occlusion. Do not resolve an uncertainty in the
+direction that happens to look better.
+
+Set "inferenceLevel" to "photographed" on every shot.`;
 
 const analysisSchema = {
   type: 'object',
@@ -309,11 +338,14 @@ const analysisSchema = {
   ],
 } as const;
 
+export type PlanningLogic = 'v4' | 'v5';
+
 export async function analyzeCampaign(
   client: OpenAI,
   sources: SourcePhoto[],
   requestedCount: RequestedImageCount,
   sellerNotes: string,
+  logic: PlanningLogic = 'v5',
 ): Promise<AnalysisResult> {
   const model = process.env.OPENAI_TEXT_MODEL || 'gpt-4o';
 
@@ -341,7 +373,7 @@ export async function analyzeCampaign(
   const completion = await client.chat.completions.create({
     model,
     messages: [
-      { role: 'system', content: SYSTEM_PROMPT },
+      { role: 'system', content: SYSTEM_PROMPT(logic === 'v4' ? INFERENCE_V4 : INFERENCE_V5) },
       {
         role: 'user',
         content: [{ type: 'text', text: userText }, ...imageParts],

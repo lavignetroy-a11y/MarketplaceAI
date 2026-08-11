@@ -39,7 +39,7 @@ import path from 'path';
 import OpenAI from 'openai';
 import sharp from 'sharp';
 import type { OverlayOptions } from 'sharp';
-import { analyzeCampaign } from '../lib/campaign/analyze';
+import { analyzeCampaign, type PlanningLogic } from '../lib/campaign/analyze';
 import {
   dataUrlToSourcePhoto,
   editHeroImage,
@@ -92,6 +92,7 @@ if (!dir) {
     --notes "..."     seller notes passed to the analysis
     --plan-only       plan and write prompts, generate nothing (free)
     --force           generate even if the analysis says the photos are too thin (test only)
+    --logic v4|v5     planning logic (default v5: allows inference, marks what it inferred)
 
   Strategies:
 ${STRATEGIES.map((s) => `    ${s.id.padEnd(11)} ${s.name}`).join('\n')}
@@ -121,6 +122,14 @@ const planOnly = has('plan-only');
 // Proceed even when the analysis judges the photo set too thin to be truthful. Experiments only:
 // the point here is to render the same shots several ways, not to produce a listing.
 const force = has('force');
+
+// Which planning logic to use. v4 refuses to produce any view the photographs do not cover; v5
+// allows continuity, interpolation, and completion of identified mass-produced products.
+const logic = (flag('logic') ?? 'v5') as PlanningLogic;
+if (logic !== 'v4' && logic !== 'v5') {
+  console.error(`Unknown logic "${logic}". Use v4 or v5.`);
+  process.exit(1);
+}
 
 // Evidence shots deliberately share one documentary contract across every arm, so including them
 // spends real money on columns that come back near-identical in all six rows. --only marketing
@@ -334,7 +343,7 @@ async function main() {
   // use this, since a strategy that wins on upholstery may lose badly on metal.
   const stamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
   const slug = path.basename(path.resolve(dir!)).replace(/[^a-zA-Z0-9._-]/g, '-') || 'run';
-  const runDir = path.join(process.cwd(), 'studio-output', 'ab', `${stamp}-${slug}`);
+  const runDir = path.join(process.cwd(), 'studio-output', 'ab', `${stamp}-${slug}-${logic}`);
   await fs.mkdir(path.join(runDir, 'prompts'), { recursive: true });
 
   console.log(`\n  ${sources.length} source photos from ${dir}`);
@@ -344,6 +353,7 @@ async function main() {
   const perTier = arms.length * count;
   const total = qualities.reduce((sum, q) => sum + perTier * RATE[q], 0);
 
+  console.log(`  planning logic: ${logic}`);
   console.log(`  ${arms.length} arms x ${count} shots = ${perTier} images per quality tier`);
   console.log(`  tiers: ${qualities.join(', ')}  ->  ${perTier * qualities.length} images total`);
   qualities.forEach((q) =>
@@ -359,7 +369,7 @@ async function main() {
 
   console.log(`  Analysing (one plan, reused by every arm)...`);
   if (notes) console.log(`  Notes: "${notes}"`);
-  const analysis: AnalysisResult = await analyzeCampaign(client, sources, planCount, notes);
+  const analysis: AnalysisResult = await analyzeCampaign(client, sources, planCount, notes, logic);
 
   await fs.writeFile(path.join(runDir, 'plan.json'), JSON.stringify(analysis, null, 2));
 
