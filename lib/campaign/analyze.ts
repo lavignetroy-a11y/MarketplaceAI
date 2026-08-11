@@ -2,7 +2,7 @@ import fs from 'fs';
 import path from 'path';
 import type OpenAI from 'openai';
 import { MAX_IMAGES, MIN_IMAGES } from '@/lib/config/pricing';
-import { coverageCatalog } from './categories';
+import { coverageCatalog, profileFor } from './categories';
 import type { AnalysisResult, RequestedImageCount, SourcePhoto } from './types';
 
 const MASTER_PROMPT = fs.readFileSync(
@@ -76,6 +76,23 @@ Requirements specific to this call:
        marketing shot: it keeps the original photo's room, and a set where three images are in a
        staged room and one is in the seller's garage announces itself as fabricated instantly.
     4. "independent" -- the hero only.
+
+- imageRole must NAME THE SHOT, using the role name from the category coverage table you chose
+  ("representative_three_quarter", "interior_dashboard", "wheel_and_tyre", "material_detail"). It
+  is what the seller sees as a filename and what a person reads to know what each image is.
+  NEVER return a generic value. "standard", "marketing", "evidence", "secondary", "image", "shot",
+  "primary" and "additional" are all rejected -- "marketing" and "evidence" in particular are the
+  classification field, not the role, and restating one in the other loses the only label the
+  campaign has. If a shot has no exact match in the table, name it descriptively in the same style.
+
+- cameraPose ALWAYS begins with a clock bearing and a height, in that order, then distance:
+  "4 o'clock, chest height, 1.5m back". The item's front is 12 o'clock. Prose like "inside, from
+  the driver's seat" is not a pose -- for an interior shot the camera still has a bearing and a
+  height, so write "12 o'clock, seated height, 0.6m from the dashboard". Every shot gets one.
+
+- THE HERO IS NEVER SHOT FROM BEHIND. Its bearing must be between 9 and 3 o'clock through 12 --
+  the front, or a front three-quarter. A hero taken at 5, 6 or 7 o'clock shows a buyer the back of
+  the item as their first impression, which no photographer would do.
 
 - referenceSourceIndices: list ONLY the source photographs this specific shot actually needs as
   evidence for the view it shows. Attaching every upload to every shot drags every source's
@@ -176,6 +193,13 @@ not inventing beyond it.
 Interpolation is bounded by symmetry and continuity ONLY. It does not extend to a face of the
 object no view touches at all, or to anything that could differ without contradicting a photograph
 -- a rear panel that might carry a vent, a label, or damage nobody photographed.
+
+BE HONEST ABOUT WHICH TIER YOU ARE IN. "Interpolated" is not the safe-sounding default; it is a
+specific claim that the unseen part FOLLOWS from what is visible. A whole corner, side, rear or
+interior of an object that no photograph shows is NOT interpolation however confident you are
+about its shape -- that is Tier 3, and it must be labelled model_completed so the seller is told.
+Ask yourself, for each shot: could this surface differ from my guess without contradicting any
+photograph I was given? If yes, it is model_completed, not interpolated.
 
 TIER 3 -- MODEL COMPLETION. ALLOWED, WITH CONDITIONS.
 When the item is a mass-produced product whose exact identity is established -- year, make and
@@ -419,6 +443,57 @@ export async function analyzeCampaign(
         shot.productionMode = 'hero_reference';
         shot.sourcePhotoIndex = null;
       }
+    }
+
+    // Generic roles came back in three runs out of four -- "standard", "marketing", "secondary".
+    // The role is the only human-readable label the campaign has: it names the file, titles the
+    // column in a comparison sheet, and is how anyone tells shot 7 from shot 11. Repair from the
+    // category table rather than shipping a set of images called "standard".
+    const GENERIC_ROLES = new Set([
+      'standard', 'marketing', 'evidence', 'secondary', 'primary', 'image', 'shot',
+      'additional', 'extra', 'other', 'general', 'default', 'main', 'photo',
+    ]);
+    const profile = profileFor(
+      parsed.productIdentity.itemType,
+      parsed.productIdentity.category,
+      parsed.productIdentity.isMatchingSet,
+    );
+    // Starts at 1: index 0 is the hero's own role, and a repaired shot 5 named "hero_full_set"
+    // reads as a second hero.
+    let nextRole = 1;
+    for (const shot of parsed.shots) {
+      const role = (shot.imageRole || '').trim().toLowerCase();
+      if (shot.sequenceNumber === 1) {
+        if (!role || GENERIC_ROLES.has(role)) shot.imageRole = profile.shots[0]?.role ?? 'hero';
+        continue;
+      }
+      if (!role || GENERIC_ROLES.has(role)) {
+        // Walk the table for a role not already used, so repaired shots stay distinguishable.
+        const used = new Set(parsed.shots.map((x) => x.imageRole));
+        while (nextRole < profile.shots.length && used.has(profile.shots[nextRole].role)) nextRole++;
+        shot.imageRole =
+          profile.shots[nextRole]?.role ?? `${shot.subjectScope}_${shot.sequenceNumber}`;
+        nextRole++;
+      }
+    }
+
+    // A source_edit takes a real photograph and corrects it, so by construction the view it shows
+    // was photographed. Labelling one "interpolated" or "model_completed" is a contradiction, and
+    // it inflates the count of images the seller is told are representations.
+    for (const shot of parsed.shots) {
+      if (shot.productionMode === 'source_edit' && shot.inferenceLevel !== 'photographed') {
+        problems.push(
+          `shot ${shot.sequenceNumber} edits a real photo but was labelled ${shot.inferenceLevel}`,
+        );
+        shot.inferenceLevel = 'photographed';
+      }
+    }
+
+    // A hero from behind makes the back of the item a buyer's first impression.
+    const heroPose = (parsed.shots[0]?.cameraPose ?? '').toLowerCase();
+    const rearBearing = /\b([4-8])\s*o'?clock/.test(heroPose);
+    if (rearBearing) {
+      problems.push(`the hero is planned from behind the item (${parsed.shots[0].cameraPose})`);
     }
 
     // A completed view of a condition-disclosure shot defeats the shot's entire purpose: it shows
