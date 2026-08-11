@@ -496,6 +496,39 @@ export async function analyzeCampaign(
       problems.push(`the hero is planned from behind the item (${parsed.shots[0].cameraPose})`);
     }
 
+    // Tier 3 is completion from knowledge of a SPECIFIC mass-produced product. With no brand and
+    // no model there is no such knowledge to draw on -- a set of unbranded dining chairs has no
+    // canonical rear elevation to look up. The run that labelled six chair shots "model_completed"
+    // was claiming a source that does not exist. Where symmetry or continuity genuinely carries
+    // the view it is interpolation; that is the honest label, so demote rather than discard.
+    const identified = Boolean(parsed.productIdentity.brand && parsed.productIdentity.model);
+    if (!identified) {
+      const claimed = parsed.shots.filter((s) => s.inferenceLevel === 'model_completed');
+      if (claimed.length) {
+        problems.push(
+          `${claimed.length} shot(s) claimed model completion for an item with no identified ` +
+            'brand and model, so they were downgraded to interpolation',
+        );
+        claimed.forEach((s) => {
+          s.inferenceLevel = 'interpolated';
+        });
+      }
+    }
+
+    // Duplicate roles ship as duplicate filenames and identical column headings, and they are a
+    // symptom too: two shots with one name are usually two shots doing one job.
+    const seenRoles = new Map<string, number>();
+    for (const shot of parsed.shots) {
+      const n = (seenRoles.get(shot.imageRole) ?? 0) + 1;
+      seenRoles.set(shot.imageRole, n);
+      if (n > 1) shot.imageRole = `${shot.imageRole}_${n}`;
+    }
+
+    // "0 o'clock" is not a bearing. The front is 12.
+    for (const shot of parsed.shots) {
+      if (shot.cameraPose) shot.cameraPose = shot.cameraPose.replace(/\b0\s*(o'?clock)/gi, "12 $1");
+    }
+
     // A completed view of a condition-disclosure shot defeats the shot's entire purpose: it shows
     // what the factory shipped rather than what is actually there. Downgrade rather than ship it.
     for (const shot of parsed.shots) {
@@ -535,18 +568,23 @@ export async function analyzeCampaign(
       console.warn(`Campaign plan is weak: ${problems.join('; ')}`);
     }
 
+    // A source_edit naming a photo that does not exist used to throw, which discarded an entire
+    // eighteen-shot plan over one bad integer. The shot is still perfectly producible without that
+    // mode, so demote it and carry on.
     for (const shot of parsed.shots) {
-      if (shot.productionMode === 'source_edit') {
-        if (
-          shot.sourcePhotoIndex === null ||
-          shot.sourcePhotoIndex < 0 ||
-          shot.sourcePhotoIndex >= sources.length
-        ) {
-          throw new Error(
-            `Shot ${shot.sequenceNumber} is source_edit but has an invalid sourcePhotoIndex.`,
-          );
-        }
+      if (shot.productionMode !== 'source_edit') continue;
+      const i = shot.sourcePhotoIndex;
+      if (i === null || i < 0 || i >= sources.length) {
+        problems.push(
+          `shot ${shot.sequenceNumber} asked to edit source photo ${i}, which does not exist`,
+        );
+        shot.productionMode = 'hero_reference';
+        shot.sourcePhotoIndex = null;
       }
+    }
+
+    if (problems.length) {
+      console.warn(`Plan repaired: ${problems.join('; ')}`);
     }
   }
 

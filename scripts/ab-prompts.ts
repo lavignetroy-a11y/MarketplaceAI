@@ -415,9 +415,19 @@ async function main() {
 
   if (only && chosen.length < count) {
     console.log(
-      `\n  Note: asked for ${count} ${only} shots but the plan only contains ` +
-        `${chosen.length}. Comparing those.`,
+      `\n  Note: asked for ${count} ${only} shots but the plan only contains ${chosen.length}.`,
     );
+    // A run that compares one shot against another run's eight is not a comparison, and quietly
+    // proceeding produced exactly that. Half the requested count is the line: below it, say so and
+    // stop rather than spend money on a result nobody can read anything into.
+    if (chosen.length < Math.ceil(count / 2)) {
+      console.log(
+        `\n  That is too few to compare against a full run. This usually means the analysis\n` +
+          `  refused and the best-effort plan is mostly evidence shots. Either add the photos it\n` +
+          `  asked for, drop --only marketing, or lower --count.\n`,
+      );
+      if (!planOnly) return;
+    }
   }
 
   console.log('\n  Plan:');
