@@ -70,23 +70,27 @@ const FURNITURE_SET: CategoryProfile = {
   matches: ['set of', 'pair of', 'dining chairs', 'matching', 'four chairs', 'six chairs', 'dining set'],
   shots: [
     { role: 'hero_full_set', answers: 'What is it and how many do I get?', scope: 'full_set', priority: 1 },
-    { role: 'quantity_overview', answers: 'Are all the units really there and do they match?', scope: 'full_set', priority: 2 },
+    // Only worth buying when the hero is angled or styled enough that units are hidden or hard to
+    // compare. A flat, square-on hero has already done this job.
+    { role: 'quantity_confirmation', answers: 'Are all the units there and do they match?', scope: 'full_set', priority: 2 },
     { role: 'representative_three_quarter', answers: 'What does one of them actually look like?', scope: 'representative', priority: 3 },
     { role: 'representative_front', answers: 'What are one unit\'s true proportions?', scope: 'representative', priority: 4 },
-    { role: 'representative_side', answers: 'What is the silhouette from the side?', scope: 'representative', priority: 5 },
-    { role: 'material_detail', answers: 'What is it made of?', scope: 'detail', priority: 6 },
-    { role: 'condition_detail', answers: 'How worn are they?', scope: 'detail', priority: 7 },
+    { role: 'material_detail', answers: 'What is it made of?', scope: 'detail', priority: 5 },
+    { role: 'condition_detail', answers: 'How worn are they?', scope: 'detail', priority: 6 },
+    { role: 'representative_side', answers: 'What is the silhouette from the side?', scope: 'representative', priority: 7 },
     { role: 'representative_rear', answers: 'What does the back look like?', scope: 'representative', priority: 8 },
-    { role: 'set_alternate_angle', answers: 'Do they match from another angle too?', scope: 'full_set', priority: 9 },
-    { role: 'joinery_detail', answers: 'How well are they built?', scope: 'detail', priority: 10 },
+    { role: 'joinery_detail', answers: 'How well are they built?', scope: 'detail', priority: 9 },
+    { role: 'seat_surface_detail', answers: 'What does the part I sit on look like?', scope: 'detail', priority: 10 },
   ],
   guidance:
     'THE MOST COMMON FAILURE FOR SETS IS SHOWING THE WHOLE SET IN EVERY IMAGE. Four chairs in ' +
     'every frame means every chair is small and a buyer never sees any of them properly. ' +
-    'Establish quantity in the first two or three images, then spend the rest on ONE ' +
-    'representative unit, close enough to judge. Roughly a quarter of the set on group shots and ' +
-    'the rest on the representative unit is a good balance. The representative unit must be the ' +
-    'SAME physical unit in every detail shot.',
+    'Establish quantity in the first image or two, then spend everything else on ONE ' +
+    'representative unit, close enough to judge. One or two group shots is right at ANY count, ' +
+    'not a proportion of it -- the fifth picture of four chairs standing together answers nothing ' +
+    'the first one did, and it costs a detail shot that would have shown the buyer something. Buy ' +
+    'a second group shot only when the hero leaves the count or the matching genuinely in doubt. ' +
+    'The representative unit must be the SAME physical unit in every detail shot.',
 };
 
 const VEHICLE: CategoryProfile = {

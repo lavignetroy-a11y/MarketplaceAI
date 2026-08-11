@@ -87,9 +87,26 @@ Requirements specific to this call:
   shown whole, "detail" when close in on part of one unit.
   FOR MULTI-UNIT LISTINGS THIS IS THE MOST IMPORTANT FIELD IN THE PLAN. Showing all units in every
   image is the standard failure: each unit ends up small and the buyer never sees any of them
-  properly. Establish quantity in the first two or three images, then spend the remaining budget
-  on ONE representative unit -- the same physical unit every time -- shown whole and close. Roughly
-  a quarter of the campaign on group shots and the rest on the representative unit.
+  properly.
+
+  How many full_set shots to buy is NOT a proportion of the count -- it is a question about what
+  the hero already proves, and the answer is almost always one or two whatever the count is. A
+  fifth photograph of four chairs standing together answers nothing the first one did not, and it
+  costs a detail shot that would have shown the buyer something real.
+
+  Buy the SECOND full_set shot only if the hero leaves a question open:
+    - the hero is angled or styled such that some units are partly hidden or hard to compare;
+    - the units differ enough that a buyer needs a flat, square-on view to confirm they match;
+    - the quantity is high enough that counting them in the hero is genuinely difficult.
+  If the hero is already flat and square-on with every unit fully visible and comparable, it has
+  done both jobs -- identity and quantity -- and a second group shot is redundancy. Spend that
+  image on the representative unit instead.
+
+  Never buy a third full_set shot unless the set is large or mixed (different sizes or types in one
+  lot) and grouping genuinely needs more than one view to explain.
+
+  Everything else goes to ONE representative unit -- the same physical unit every time -- shown
+  whole and close, plus details of it.
 
 - cameraPose: where the photographer is standing, relative to the item's own front. Use clock
   bearings and a height, e.g. "10 o'clock, chest height, 2.5m back" or "12 o'clock, kneeling, 0.6m
