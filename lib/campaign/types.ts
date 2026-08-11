@@ -28,6 +28,8 @@ export function etaSeconds(
 /** Any count within the pricing counter's range -- see lib/config/pricing.ts. */
 export type RequestedImageCount = number;
 
+import type { SubjectScope } from './categories';
+
 export type ShotClassification = 'marketing' | 'evidence';
 
 export type ShotOrientation = 'square' | 'portrait' | 'landscape';
@@ -65,6 +67,15 @@ export interface ShotPlan {
   // 0-based index into the uploaded source photos array. Required (non-null) only when
   // productionMode is "source_edit" -- identifies which exact original photo to edit.
   sourcePhotoIndex: number | null;
+  /**
+   * Which uploads to attach to THIS shot, 0-based. Attaching all of them puts every source's
+   * garage, driveway and kitchen in front of the model at once, and it averages them.
+   */
+  referenceSourceIndices: number[];
+  /** full_set establishes quantity, representative shows one unit whole, detail goes close in. */
+  subjectScope: SubjectScope;
+  /** Where the photographer stands, relative to the item's fixed 12 o'clock front. */
+  cameraPose: string;
   orientation: ShotOrientation;
   prompt: string;
   saveAs: string;
@@ -100,6 +111,8 @@ export interface AnalysisResult {
   shots: ShotPlan[];
   listingTitle: string;
   listingDescription: string;
+  /** Plain-language notes on shots that evidence could not support, and what replaced them. */
+  coverageNotes: string[];
 }
 
 export type CampaignStatus =

@@ -414,10 +414,14 @@ async function main() {
   all.forEach((s) => {
     const used = chosen.includes(s);
     console.log(
-      `    ${used ? '*' : ' '} ${s.sequenceNumber}. ${s.imageRole} ` +
-        `[${s.classification}/${s.productionMode}]`,
+      `    ${used ? '*' : ' '} ${String(s.sequenceNumber).padStart(2)}. ${s.imageRole.padEnd(28)} ` +
+        `[${s.subjectScope ?? '?'}/${s.productionMode}]  ${s.cameraPose ?? ''}`,
     );
   });
+  if (analysis.coverageNotes?.length) {
+    console.log('\n  Coverage notes (what the photos could not support):');
+    analysis.coverageNotes.forEach((n) => console.log(`    - ${n}`));
+  }
   if (only) console.log(`\n  (* = compared; the rest are planned but not generated)`);
 
   // Every arm generates this same subset.

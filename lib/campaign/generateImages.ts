@@ -53,9 +53,20 @@ export async function generateShotImage(
 ): Promise<string> {
   const model = process.env.OPENAI_IMAGE_MODEL || 'gpt-image-2';
 
+  // Only the sources this shot actually needs. Handing the model every upload puts every source's
+  // garage, driveway and kitchen in front of it simultaneously and it averages them -- which is how
+  // a set ends up with three images in a staged room and one on a concrete floor. The planner names
+  // the evidence each shot requires; an empty or missing list falls back to the old behaviour so a
+  // plan from before this field existed still runs.
+  const wanted = shot.referenceSourceIndices?.filter((i) => sources[i] !== undefined) ?? [];
+  const chosen = wanted.length ? wanted.map((i) => sources[i]) : sources;
+
   const referenceBudget = heroReference ? MAX_REFERENCE_IMAGES - 1 : MAX_REFERENCE_IMAGES;
-  const references = pickReferenceSources(sources, referenceBudget).map(toFile);
-  if (heroReference) references.push(toFile(heroReference));
+  const references = pickReferenceSources(chosen, referenceBudget).map(toFile);
+
+  // The hero goes FIRST. It is the environment authority, and attachment order is the only signal
+  // available for which reference outranks which.
+  if (heroReference) references.unshift(toFile(heroReference));
 
   const result = await client.images.edit({
     model,

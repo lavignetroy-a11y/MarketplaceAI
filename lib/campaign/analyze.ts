@@ -2,6 +2,7 @@ import fs from 'fs';
 import path from 'path';
 import type OpenAI from 'openai';
 import { MAX_IMAGES, MIN_IMAGES } from '@/lib/config/pricing';
+import { coverageCatalog } from './categories';
 import type { AnalysisResult, RequestedImageCount, SourcePhoto } from './types';
 
 const MASTER_PROMPT = fs.readFileSync(
@@ -56,33 +57,46 @@ Requirements specific to this call:
   sequenceNumber 1..N with no gaps or repeats.
 - shots[0] is always the hero: sequenceNumber 1, imageRole "hero", productionMode "independent",
   sourcePhotoIndex null.
-- Every other shot must be assigned exactly one productionMode, chosen in this priority order:
-    1. "source_edit" -- ALWAYS PREFER THIS whenever a specific original source photo already
-       shows the exact viewpoint this shot needs (per the ADDITIONAL OPERATING RULES section
-       above: geometry reconstruction is a last resort, not a default). Set sourcePhotoIndex to
-       the 0-based index of that exact photo (the attached images are labeled "SOURCE INDEX 0",
-       "SOURCE INDEX 1", etc, in upload order -- use that number exactly). Write the prompt as an
-       edit instruction against that specific photo (e.g. "keep this exact photo's product
-       geometry, framing, and every control/feature position unchanged; only improve lighting,
-       background, and crop"). This is mandatory for any shot showing asymmetric or
-       handedness-critical mechanical detail (steering wheels, control panels, hinges, handles,
-       ports, switches) when a source photo of that view exists, because reconstructing such
-       detail from scratch is exactly what causes mirrored/backwards geometry errors.
-    2. "hero_edit" -- use ONLY when no source photo covers this exact viewpoint, but the shot
-       keeps the exact same camera position, angle, and distance as the hero (e.g. a tighter crop
-       on the same setup, a material/detail close-up within the same frame). Guarantees a
-       pixel-identical background, but only physically coherent when the camera has NOT moved
-       relative to the hero. For these shots, set "orientation" equal to the hero shot's
-       orientation and sourcePhotoIndex null.
-    3. "hero_reference" -- use only when the shot truly requires a camera angle/position that
-       is covered by NEITHER a source photo NOR the hero's framing, and reconstruction is
-       therefore unavoidable. The hero is attached only as a soft environment/material/lighting
-       reference per the DEPENDENT MARKETING SHOT RULE above -- it will not produce an identical
-       background. sourcePhotoIndex null. Because this mode carries the highest geometry-error
-       risk, explicitly restate in the prompt the exact left/right orientation and layout of any
-       asymmetric feature, drawn from the truth lock, so the model cannot guess it wrong.
-    4. "independent" -- use for evidence/documentary shots not covered by rule 1, and any
-       marketing shot needing no continuity with the hero. sourcePhotoIndex null.
+- Every other shot must be assigned exactly one productionMode. THE CAMPAIGN ENVIRONMENT IS THE
+  ONLY SETTING. The seller's original background -- garage, driveway, storage room, cluttered floor
+  -- is evidence about the ITEM and is never the setting of a delivered marketing image. Choose:
+    1. "hero_edit" -- the camera has NOT moved from the hero. A tighter crop, a detail within the
+       hero's own frame. Pixel-identical background, which is why it is preferred whenever the
+       shot can be taken from where the hero was taken. sourcePhotoIndex null, orientation equal
+       to the hero's.
+    2. "hero_reference" -- the camera HAS moved: a different orbit position, a different distance,
+       a view of another side. The hero is attached for the environment and the locked scene
+       description carries the room. Use this for the majority of marketing shots, because a
+       photographer walking around an item is exactly what this campaign is. Because reconstruction
+       carries geometry risk, restate in the prompt the exact left/right layout of any asymmetric
+       feature, drawn from the truth lock.
+    3. "source_edit" -- ONLY for evidence/documentary shots, where a specific original photo must
+       be preserved because reconstructing it would risk changing a fact (labels, serial plates,
+       specific damage, undersides, mechanisms). Set sourcePhotoIndex. Never use this mode for a
+       marketing shot: it keeps the original photo's room, and a set where three images are in a
+       staged room and one is in the seller's garage announces itself as fabricated instantly.
+    4. "independent" -- the hero only.
+
+- referenceSourceIndices: list ONLY the source photographs this specific shot actually needs as
+  evidence for the view it shows. Attaching every upload to every shot drags every source's
+  background, lighting and camera position into the frame at once, and the model averages them.
+  A rear view needs the photo showing the rear. A fabric close-up needs the photo showing the
+  fabric. Two or three indices is normal; all of them is almost always wrong.
+
+- subjectScope: "full_set" when every unit is visible together, "representative" when ONE unit is
+  shown whole, "detail" when close in on part of one unit.
+  FOR MULTI-UNIT LISTINGS THIS IS THE MOST IMPORTANT FIELD IN THE PLAN. Showing all units in every
+  image is the standard failure: each unit ends up small and the buyer never sees any of them
+  properly. Establish quantity in the first two or three images, then spend the remaining budget
+  on ONE representative unit -- the same physical unit every time -- shown whole and close. Roughly
+  a quarter of the campaign on group shots and the rest on the representative unit.
+
+- cameraPose: where the photographer is standing, relative to the item's own front. Use clock
+  bearings and a height, e.g. "10 o'clock, chest height, 2.5m back" or "12 o'clock, kneeling, 0.6m
+  from the seat front". The item's front is 12 o'clock and NEVER MOVES between shots; the
+  photographer walks around it. Vary pose meaningfully across the campaign -- orbit position,
+  distance and height -- and never plan two shots from effectively the same standing position.
+
 - Never invent a human figure in any shot's prompt unless that exact source photo (source_edit
   mode) already contains a real person being conservatively edited. Do not add a person to a
   hero_edit, hero_reference, or independent shot.
@@ -94,10 +108,19 @@ Requirements specific to this call:
   itself must restate the product truth lock, the permitted enhancements, the forbidden changes,
   and the never-generate list as they apply to that specific shot -- do not write a short prompt
   that assumes shared context.
-- If, and only if, truthful completion of the requested count is impossible with the given
-  photos, set readyForGeneration to false, explain why in reasonNotReady, list the precise
-  minimum additional evidence needed, and you may still return a best-effort "shots" array (it
-  will not be used for generation in that case).
+- MISSING EVIDENCE: SUBSTITUTE, DO NOT REFUSE. If a shot you wanted cannot be supported by the
+  photographs -- no rear view, no underside, no engine bay, no label -- do not stop the campaign
+  and do not invent the view. Drop that candidate, take the next supported shot down the category
+  list, and keep the count exactly as purchased. Record what you dropped and what replaced it in
+  "coverageNotes", in plain language a seller would understand, e.g. "No underside photo was
+  provided, so an extra upholstery close-up was included instead." Never mention prompts, source
+  indices, or internal terminology there.
+- Set readyForGeneration to false ONLY when the core listing truth itself cannot be established:
+  the quantity is fundamentally ambiguous, the photographs appear to show different items, the
+  subject is mostly concealed, or the purchased count cannot be filled without duplicating a shot
+  or inventing an unseen view. One desirable view being unavailable is NOT a reason to refuse --
+  it is a reason to substitute. When you do refuse, explain why in reasonNotReady, list the precise
+  minimum additional evidence needed, and still return a best-effort "shots" array.
 - Do not include any internal stage names, QA scores, or retry mechanics in listingTitle or
   listingDescription -- those are customer-facing text.`;
 
@@ -162,6 +185,13 @@ const analysisSchema = {
             enum: ['independent', 'hero_edit', 'hero_reference', 'source_edit'],
           },
           sourcePhotoIndex: { type: ['integer', 'null'] },
+          // Which uploads to attach to THIS shot. Attaching all of them drags every source's
+          // garage, driveway and kitchen into the frame at once.
+          referenceSourceIndices: { type: 'array', items: { type: 'integer' } },
+          // full_set establishes quantity; representative shows one unit whole; detail goes close.
+          subjectScope: { type: 'string', enum: ['full_set', 'representative', 'detail'] },
+          // Where the photographer is standing, relative to the item's fixed front.
+          cameraPose: { type: 'string' },
           orientation: { type: 'string', enum: ['square', 'portrait', 'landscape'] },
           prompt: { type: 'string' },
           saveAs: { type: 'string' },
@@ -173,6 +203,9 @@ const analysisSchema = {
           'classification',
           'productionMode',
           'sourcePhotoIndex',
+          'referenceSourceIndices',
+          'subjectScope',
+          'cameraPose',
           'orientation',
           'prompt',
           'saveAs',
@@ -181,6 +214,9 @@ const analysisSchema = {
     },
     listingTitle: { type: 'string' },
     listingDescription: { type: 'string' },
+    // Plain-language notes about shots that were wanted but could not be supported, and what was
+    // used instead. Substituting and saying so beats refusing the whole campaign.
+    coverageNotes: { type: 'array', items: { type: 'string' } },
   },
   required: [
     'readyForGeneration',
@@ -194,6 +230,7 @@ const analysisSchema = {
     'shots',
     'listingTitle',
     'listingDescription',
+    'coverageNotes',
   ],
 } as const;
 
@@ -217,6 +254,8 @@ export async function analyzeCampaign(
   ]);
 
   const userText = [
+    coverageCatalog(requestedCount),
+    '',
     `requested_final_image_count: ${requestedCount}`,
     `seller_notes: ${sellerNotes.trim() || 'none provided'}`,
     `source photo count: ${sources.length} (attached below, each preceded by its 0-based ` +
@@ -261,6 +300,37 @@ export async function analyzeCampaign(
     if (JSON.stringify(sequences) !== JSON.stringify(expected)) {
       throw new Error('Analysis returned shots with invalid or duplicate sequence numbers.');
     }
+    // Deterministic checks on the plan, before a cent is spent. These are the mistakes that are
+    // cheap to detect and expensive to discover in the output: a marketing shot in source_edit mode
+    // puts the seller's garage in the middle of a staged set, and a multi-unit listing where every
+    // shot is full_set gives a buyer four small chairs and no look at any of them.
+    const problems: string[] = [];
+
+    for (const shot of parsed.shots.slice(1)) {
+      if (shot.productionMode === 'source_edit' && shot.classification === 'marketing') {
+        // Repairable: the shot is fine, the mode is wrong. hero_reference keeps the campaign room.
+        shot.productionMode = 'hero_reference';
+        shot.sourcePhotoIndex = null;
+      }
+    }
+
+    const multiUnit = parsed.productIdentity.quantity > 1;
+    if (multiUnit) {
+      const fullSet = parsed.shots.filter((s) => s.subjectScope === 'full_set').length;
+      if (fullSet === parsed.shots.length) {
+        problems.push(
+          'every shot shows the whole set, so no single unit is ever seen properly',
+        );
+      }
+    }
+    const poses = new Set(parsed.shots.map((s) => (s.cameraPose || '').trim().toLowerCase()));
+    if (parsed.shots.length > 2 && poses.size < 2) {
+      problems.push('every shot is planned from the same camera position');
+    }
+    if (problems.length) {
+      console.warn(`Campaign plan is weak: ${problems.join('; ')}`);
+    }
+
     for (const shot of parsed.shots) {
       if (shot.productionMode === 'source_edit') {
         if (
