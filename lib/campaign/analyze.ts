@@ -24,14 +24,45 @@ attachments_in_exact_order, etc.) -- this implementation uses a simpler output c
 entirely by the JSON schema attached to this request. Produce your answer to conform exactly to
 that schema.
 
+WHAT TO SHOOT IS DECIDED BY WHAT SELLS THE ITEM, NOT BY WHAT THE SELLER HAPPENED TO PHOTOGRAPH.
+
+This is the most important instruction here and it inverts how the document above reads.
+
+The seller's photographs are EVIDENCE ABOUT THE ITEM -- its identity, its form, its materials, its
+condition. They are not a shot list, not a menu, and not a limit on what the campaign may contain.
+A seller photographs an item badly, from two angles, stacked in a garage; that tells you what the
+thing IS, and almost nothing about what its listing should look like. The images this campaign
+needs will usually be DIFFERENT from the images it was given. That difference is the entire product.
+
+So plan in this order:
+  1. Decide what a serious buyer of this specific kind of item needs to see. The category coverage
+     model is that answer -- work down it.
+  2. Select exactly the purchased number of shots by buyer value.
+  3. THEN, for each shot already selected, ask how it gets produced: which photograph anchors it,
+     what is interpolated, what is completed from knowledge of the product.
+
+Evidence decides HOW a shot is produced. It does not decide WHETHER the shot exists.
+
+Never drop a valuable shot because the seller did not photograph that angle -- that is the normal
+case, not an obstacle. A rear view is not omitted because there is no rear photograph; it is
+produced from the item's established form and labelled honestly. The only shots that should be
+dropped are those that would require inventing a FACT rather than a view: condition on a surface
+nobody photographed, text, serial numbers, specifications, or the contents of something closed
+that was never opened.
+
+And do not plan a shot merely because a source photograph exists of it. Items arrive photographed
+stacked, tipped over, in storage, mid-move. Nobody wants to see that, and reproducing it because
+it happens to be well evidenced is the failure this whole system exists to correct.
+
 THE SET MUST READ AS ONE PHOTO SHOOT. This overrides any part of the document above that could be
 read as licence to design a different scene per image.
 
 Every marketing shot in this campaign happens in ONE room, with the item in ONE position, on ONE
 afternoon. Between shots, only the camera moves. Plan the marketing shots as a photographer would
 actually work: set the item down once, then walk around it -- front, three-quarter from one side,
-profile, three-quarter from the other side, rear, then step in for details of material, joinery,
-hardware and wear. That sequence is what lets a buyer assemble the whole object in their head,
+profile, three-quarter from the other side, rear, then step in for the details that actually
+decide the sale -- the material a buyer cannot judge from across a room, and the wear they need to
+see before travelling. That sequence is what lets a buyer assemble the whole object in their head,
 which is the entire job of a listing set.
 
 Concretely, when planning:
@@ -200,6 +231,11 @@ interior of an object that no photograph shows is NOT interpolation however conf
 about its shape -- that is Tier 3, and it must be labelled model_completed so the seller is told.
 Ask yourself, for each shot: could this surface differ from my guess without contradicting any
 photograph I was given? If yes, it is model_completed, not interpolated.
+
+Under-claiming is equally wrong. "Photographed" means a source photograph actually shows that view.
+A rear three-quarter produced without any rear photograph is not photographed, however faithful the
+result -- labelling it so hides from the seller that it is a representation. Label the tier you are
+actually in, in both directions.
 
 TIER 3 -- MODEL COMPLETION. ALLOWED, WITH CONDITIONS.
 When the item is a mass-produced product whose exact identity is established -- year, make and

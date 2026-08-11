@@ -54,15 +54,18 @@ const FURNITURE: CategoryProfile = {
     { role: 'side_profile', answers: 'How deep is it, and what is its silhouette?', scope: 'representative', priority: 4 },
     { role: 'material_detail', answers: 'What is it actually made of?', scope: 'detail', priority: 5 },
     { role: 'condition_detail', answers: 'How worn is it really?', scope: 'detail', priority: 6 },
-    { role: 'rear_construction', answers: 'Is the back finished, and how is it built?', scope: 'representative', priority: 7 },
+    { role: 'rear_view', answers: 'What does the back look like from the room?', scope: 'representative', priority: 7 },
     { role: 'seat_or_surface_top', answers: 'What does the part I touch look like?', scope: 'detail', priority: 8 },
-    { role: 'leg_and_joinery', answers: 'Is the construction solid?', scope: 'detail', priority: 9 },
+    { role: 'leg_and_foot_condition', answers: 'Are the legs scuffed, and is the finish intact?', scope: 'detail', priority: 9 },
     { role: 'scale_context', answers: 'How big is it in a room?', scope: 'representative', priority: 10 },
   ],
   guidance:
     'Upholstery and finish carry the sale, so close-ups earn their place early -- a buyer cannot ' +
-    'judge fabric from across a room. Do not spend an image on the rear unless the back is ' +
-    'visible in use or its construction is a selling point.',
+    'judge fabric from across a room. DO NOT spend an image on joinery, frame construction, or ' +
+    'the underside of ordinary mass-market furniture. Nobody buying a used dining chair inspects ' +
+    'its joints, and a photograph of one reads as padding. Reserve construction detail for solid ' +
+    'wood, antique, handmade or designer pieces where build quality is genuinely the selling ' +
+    'point. Spend those images on fabric, wear, and the seat instead.',
 };
 
 const FURNITURE_SET: CategoryProfile = {
@@ -79,8 +82,8 @@ const FURNITURE_SET: CategoryProfile = {
     { role: 'condition_detail', answers: 'How worn are they?', scope: 'detail', priority: 6 },
     { role: 'representative_side', answers: 'What is the silhouette from the side?', scope: 'representative', priority: 7 },
     { role: 'representative_rear', answers: 'What does the back look like?', scope: 'representative', priority: 8 },
-    { role: 'joinery_detail', answers: 'How well are they built?', scope: 'detail', priority: 9 },
-    { role: 'seat_surface_detail', answers: 'What does the part I sit on look like?', scope: 'detail', priority: 10 },
+    { role: 'seat_surface_detail', answers: 'What does the part I sit on look like?', scope: 'detail', priority: 9 },
+    { role: 'leg_and_foot_condition', answers: 'Are the legs scuffed, and is the finish intact?', scope: 'detail', priority: 10 },
   ],
   guidance:
     'THE MOST COMMON FAILURE FOR SETS IS SHOWING THE WHOLE SET IN EVERY IMAGE. Four chairs in ' +
@@ -90,7 +93,10 @@ const FURNITURE_SET: CategoryProfile = {
     'not a proportion of it -- the fifth picture of four chairs standing together answers nothing ' +
     'the first one did, and it costs a detail shot that would have shown the buyer something. Buy ' +
     'a second group shot only when the hero leaves the count or the matching genuinely in doubt. ' +
-    'The representative unit must be the SAME physical unit in every detail shot.',
+    'The representative unit must be the SAME physical unit in every detail shot. ' +
+    'DO NOT spend images on joinery or frame construction for ordinary mass-market furniture -- ' +
+    'buyers of used dining chairs do not inspect joints, and such a shot reads as filler. Fabric, ' +
+    'wear, the seat surface, and leg finish are what they actually want.',
 };
 
 const VEHICLE: CategoryProfile = {
