@@ -262,17 +262,28 @@ async function cell(file: string | null): Promise<Buffer> {
     .toBuffer();
 }
 
-/** One row per arm, one column per shot. The thing you actually look at. */
+/**
+ * One row per arm, one column per shot, with the seller's own photographs on the first row.
+ *
+ * The sources belong in the same picture. Judging a generated set means asking whether it is the
+ * same object, whether the wear survived, whether the proportions hold -- and that is impossible
+ * from the output alone. Keeping them in one file also means the whole thing can be handed to
+ * somebody else as a single image without a folder of context.
+ */
 async function buildCompareSheet(
   runDir: string,
   quality: ImageQuality,
   rows: { strategy: PromptStrategy; files: (string | null)[] }[],
   headers: string[],
+  sourceFiles: string[] = [],
 ): Promise<string> {
   const cols = headers.length;
   const width = STRIP_W + cols * CELL_W + (cols + 1) * PAD;
   const rowH = CELL_H + PAD;
-  const height = LABEL + PAD + rows.length * rowH + PAD;
+  // The originals get their own row above the arms, plus a rule to separate them -- they are
+  // evidence, not another candidate, and the sheet should not invite comparing them like one.
+  const sourceRows = sourceFiles.length ? 1 : 0;
+  const height = LABEL + PAD + (rows.length + sourceRows) * rowH + PAD + (sourceRows ? PAD * 2 : 0);
 
   const composite: OverlayOptions[] = [];
 
@@ -288,8 +299,22 @@ async function buildCompareSheet(
     });
   }
 
+  let cursorTop = LABEL + PAD;
+
+  if (sourceFiles.length) {
+    composite.push({ input: await labelStrip('ORIGINALS', CELL_H), left: 0, top: cursorTop });
+    for (let c = 0; c < cols; c++) {
+      composite.push({
+        input: await cell(sourceFiles[c] ?? null),
+        left: STRIP_W + PAD + c * (CELL_W + PAD),
+        top: cursorTop,
+      });
+    }
+    cursorTop += rowH + PAD * 2;
+  }
+
   for (let r = 0; r < rows.length; r++) {
-    const top = LABEL + PAD + r * rowH;
+    const top = cursorTop + r * rowH;
     composite.push({ input: await labelStrip(rows[r].strategy.id, CELL_H), left: 0, top });
     for (let c = 0; c < cols; c++) {
       composite.push({
@@ -546,7 +571,13 @@ async function main() {
       rows.push({ strategy: arm, files });
     }
 
-    const file = await buildCompareSheet(runDir, quality, rows, headers);
+    const file = await buildCompareSheet(
+      runDir,
+      quality,
+      rows,
+      headers,
+      sources.map((src) => path.join(dir!, src.fileName)),
+    );
     sheets.push({ quality, file, done, failed });
     console.log(`\n  ${quality} pass complete: ${done} generated, ${failed} failed`);
     console.log(`  ${file}`);

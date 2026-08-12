@@ -12,6 +12,7 @@
  * unreadable stream and quadruple the request rate for no wall-clock gain worth having.
  */
 import { spawn } from 'child_process';
+import fs from 'fs/promises';
 import path from 'path';
 
 const argv = process.argv.slice(2);
@@ -116,7 +117,33 @@ async function main() {
   console.log('  ALL RUNS COMPLETE');
   console.log(`${'='.repeat(70)}`);
   results.forEach((r) => console.log(`    ${r.code === 0 ? 'ok  ' : 'FAIL'} ${r.label}`));
-  console.log(`\n  Output folders are named <timestamp>-<item>-<logic> under studio-output/ab/\n`);
+
+  // Reviewing several items means opening several sheets, and hunting for them among timestamped
+  // folders is exactly the friction that stops anyone actually looking.
+  const abRoot = path.join(process.cwd(), 'studio-output', 'ab');
+  const sheets: string[] = [];
+  try {
+    const dirs = (await fs.readdir(abRoot, { withFileTypes: true }))
+      .filter((d) => d.isDirectory())
+      .map((d) => d.name)
+      .sort()
+      .slice(-jobs.length);
+    for (const d of dirs) {
+      for (const f of await fs.readdir(path.join(abRoot, d))) {
+        if (f.startsWith('COMPARE-')) sheets.push(path.join(abRoot, d, f));
+      }
+    }
+  } catch {
+    // Listing is a convenience; a failure here should not look like the run failed.
+  }
+
+  if (sheets.length) {
+    console.log('\n  Sheets to review:');
+    sheets.forEach((f) => console.log(`    ${f}`));
+    console.log('\n  Each one now carries the seller\'s original photographs on its top row, so a');
+    console.log('  sheet can be judged -- or handed to somebody else -- without a folder of context.');
+  }
+  console.log('');
 }
 
 main().catch((err) => {
