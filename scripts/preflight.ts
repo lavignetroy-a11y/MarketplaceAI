@@ -50,7 +50,7 @@ add(
   'warn',
   'Stripe keys are live, not test',
   env('STRIPE_SECRET_KEY').startsWith('sk_live_'),
-  'Currently a test key. Real cards will not work.',
+  'Currently a test key, so no real card can pay. Deliberate while testing a deployment.',
 );
 
 // --- the model -------------------------------------------------------------
@@ -67,19 +67,29 @@ add(
 
 // --- reachability ----------------------------------------------------------
 // The refund policy, terms and acceptable-use page all point at these addresses.
+//
+// Severity follows whether real money is moving. A deployment on test keys has no customers to
+// strand, so a placeholder address there is a note to self. The moment live keys are in, a
+// stranger can pay and then have nowhere to complain to, and it becomes a blocker.
+const liveStripe = env('STRIPE_SECRET_KEY').startsWith('sk_live_');
+const contactLevel: Level = liveStripe ? 'blocker' : 'warn';
 const support = env('NEXT_PUBLIC_SUPPORT_EMAIL');
 const abuse = env('NEXT_PUBLIC_ABUSE_EMAIL');
 add(
-  'blocker',
+  contactLevel,
   'Support address',
   Boolean(support) && !support.includes('example.com'),
-  'Falls back to example.com, so refund requests go to a domain nobody owns.',
+  liveStripe
+    ? 'Live keys are in and refund requests would go to a domain nobody owns.'
+    : 'Still a placeholder. Fine while on test keys; must be real before live ones.',
 );
 add(
-  'blocker',
+  contactLevel,
   'Abuse address',
   Boolean(abuse) && !abuse.includes('example.com'),
-  'Referenced by the acceptable-use policy.',
+  liveStripe
+    ? 'Live keys are in and the acceptable-use policy points at a dead address.'
+    : 'Still a placeholder. Fine while on test keys; must be real before live ones.',
 );
 
 // --- persistence -----------------------------------------------------------
@@ -115,6 +125,21 @@ add(
   !claims.includes('NEEDS A CITED SOURCE'),
   'HERO_STATS assert outcomes. Cite the photography research behind the figures, and make the ' +
     'wording match what that research measured.',
+);
+
+// --- scaling ---------------------------------------------------------------
+// Campaign state and the seller's uploaded photos live in an in-process Map, and generation runs
+// as background work after the response is sent. Both assume ONE long-lived process. Split the
+// traffic across two and a campaign created on one is invisible to the other: the browser polls,
+// gets a 404, and the seller watches a set they paid for never arrive.
+const replicas = Number(env('WEB_CONCURRENCY') || env('RAILWAY_REPLICA_COUNT') || '1');
+add(
+  'blocker',
+  'Running as a single instance',
+  !Number.isFinite(replicas) || replicas <= 1,
+  `Configured for ${replicas} replicas. Campaign state is in-process, so a second instance ` +
+    'cannot see campaigns created by the first. Scale only after uploads and job state move to ' +
+    'shared storage.',
 );
 
 // --- internal tooling ------------------------------------------------------
