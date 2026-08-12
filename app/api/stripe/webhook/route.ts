@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import type Stripe from 'stripe';
-import { getJob, markPaid } from '@/lib/campaign/store';
+import { getJob, markPaid, updateJob } from '@/lib/campaign/store';
 import { runFullCampaign } from '@/lib/campaign/pipeline';
 import { stripe } from '@/lib/stripe';
 
@@ -73,6 +73,12 @@ export async function POST(req: NextRequest) {
     );
     return NextResponse.json({ received: true, ignored: 'amount mismatch' });
   }
+
+  // Captured here because this is the only place it exists. Checkout collects an email from every
+  // payer, signed in or not, and most sellers will never make an account -- so an account-based
+  // address would leave the majority with no way to be told their set is ready.
+  const buyerEmail = session.customer_details?.email ?? null;
+  if (buyerEmail) updateJob(campaignId, { buyerEmail });
 
   markPaid(campaignId);
   void runFullCampaign(campaignId);

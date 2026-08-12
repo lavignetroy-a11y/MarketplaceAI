@@ -10,6 +10,9 @@ import { getJob, persistImageResult, setProgress, setStatus, updateJob } from '.
 import { applyPreviewWatermark, bufferToDataUrl, dataUrlToBuffer } from './watermark';
 import { storeCampaignImage } from './storage';
 import { readSceneFromHero, sceneClause, type SceneLock } from './sceneLock';
+import { sendEmail } from '@/lib/email/send';
+import { setFailedEmail, setReadyEmail } from '@/lib/email/templates';
+import { siteUrl } from '@/lib/stripe';
 import {
   GENERATION_CONCURRENCY,
   type CampaignProgress,
@@ -136,6 +139,33 @@ async function pool<T, R>(
     Array.from({ length: Math.min(limit, items.length) }, () => worker()),
   );
   return results;
+}
+
+/**
+ * Tells the buyer their set is finished, or that it failed.
+ *
+ * Silence after a payment is the worst outcome available: the seller has paid, has nothing, and
+ * has no reason to think anybody knows. Saying so first, unprompted, is the difference between a
+ * refund and a chargeback.
+ */
+async function notify(jobId: string, done: number, failed: number): Promise<void> {
+  const job = getJob(jobId);
+  if (!job?.buyerEmail) return;
+
+  const campaignUrl = `${siteUrl()}/upload?campaign=${jobId}`;
+  const message =
+    done === 0
+      ? setFailedEmail({ to: job.buyerEmail, campaignUrl })
+      : setReadyEmail({
+          to: job.buyerEmail,
+          campaignUrl,
+          imageCount: done,
+          failedCount: failed,
+          itemDescription: job.analysis?.productIdentity.itemType ?? null,
+        });
+
+  const sent = await sendEmail(message);
+  if (!sent) console.error(`[email] Could not notify ${job.buyerEmail} about campaign ${jobId}`);
 }
 
 function openAiClient(jobId: string): OpenAI | null {
@@ -359,6 +389,12 @@ export async function runFullCampaign(jobId: string): Promise<void> {
       setStatus(jobId, 'failed');
       updateJob(jobId, { error: 'All image generation attempts failed.' });
     }
+
+    // Told now, on completion, rather than on payment -- an email sent when the money cleared would
+    // arrive while there is still nothing to collect, and its link would open a page mid-generation.
+    // Awaited rather than fired and forgotten, so a provider failure appears in this run's logs
+    // next to the campaign it belongs to; sendEmail never throws, so it cannot break delivery.
+    await notify(jobId, done, results.length - done);
   } catch (err) {
     setStatus(jobId, 'failed');
     updateJob(jobId, { error: err instanceof Error ? err.message : 'Campaign generation failed.' });

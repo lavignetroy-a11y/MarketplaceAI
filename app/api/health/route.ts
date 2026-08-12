@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { stripeConfigured, siteUrl } from '@/lib/stripe';
 import { CONTACT_CONFIGURED } from '@/lib/config/contact';
+import { emailConfigured } from '@/lib/email/send';
 import { getSupabaseAdminClient } from '@/lib/supabase/server';
 
 export const runtime = 'nodejs';
@@ -44,6 +45,12 @@ export async function GET(req: NextRequest) {
     { name: 'site_url_matches_this_host', ok: Boolean(configuredHost) && configuredHost === requestHost },
     { name: 'contact_addresses_real', ok: CONTACT_CONFIGURED },
     { name: 'supabase_configured', ok: Boolean(getSupabaseAdminClient()) },
+    { name: 'email_configured', ok: emailConfigured() },
+    {
+      name: 'email_from_own_domain',
+      ok: Boolean((process.env.EMAIL_FROM ?? '').trim()) &&
+        !(process.env.EMAIL_FROM ?? '').includes('resend.dev'),
+    },
     {
       name: 'service_role_key_not_public',
       ok: !Object.keys(process.env).some(

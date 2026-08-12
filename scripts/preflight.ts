@@ -111,6 +111,22 @@ add(
   'A NEXT_PUBLIC_ service role key is shipped to every browser and bypasses row-level security.',
 );
 
+// --- delivery --------------------------------------------------------------
+// The images are only half the deliverable; being able to get back to them is the other half.
+add(
+  'warn',
+  'Email configured',
+  Boolean(env('RESEND_API_KEY')),
+  'A buyer who closes the tab has no way back to the set they paid for, and no way to know it ' +
+    'finished.',
+);
+add(
+  'warn',
+  'Sending from your own domain',
+  Boolean(env('EMAIL_FROM')) && !env('EMAIL_FROM').includes('resend.dev'),
+  'The shared test sender only delivers to your own address. Real buyers will receive nothing.',
+);
+
 // --- claims ----------------------------------------------------------------
 const claims = read('lib/config/claims.ts');
 add(

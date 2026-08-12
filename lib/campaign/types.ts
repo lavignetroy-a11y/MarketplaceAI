@@ -194,6 +194,12 @@ export interface CampaignJob {
   priceCents: number;
   /** Set once the campaign is attributed to a signed-in account. */
   userId?: string | null;
+  /**
+   * Where to send the finished set. Taken from the Stripe checkout session rather than from an
+   * account, because most buyers will never create one and Stripe collects an address from every
+   * payer regardless.
+   */
+  buyerEmail?: string | null;
 }
 
 export const CUSTOMER_STATUS_LABELS: Record<CampaignStatus, string> = {
