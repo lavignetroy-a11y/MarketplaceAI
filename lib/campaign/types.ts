@@ -30,6 +30,7 @@ export type RequestedImageCount = number;
 
 import type { SubjectScope } from './categories';
 import type { PresentationPlan } from './presentation';
+import type { ProductLock } from './productLock';
 
 export type ShotClassification = 'marketing' | 'evidence';
 
@@ -117,6 +118,11 @@ export interface AnalysisResult {
   conditionSummary: string[];
   truthLock: TruthLock;
   campaignThesis: string;
+  /**
+   * What keeps every image showing the same physical object. Read from the source photographs and
+   * injected ahead of everything else in every prompt -- see lib/campaign/productLock.ts.
+   */
+  productLock: ProductLock;
   environmentDescription: string;
   /**
    * What ten minutes of the seller's own preparation looks like for this specific item, and which

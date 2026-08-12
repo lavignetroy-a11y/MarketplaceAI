@@ -16,6 +16,7 @@ import {
   type SceneLock,
 } from './sceneLock';
 import { presentationClause, type PresentationPlan } from './presentation';
+import { productClause, type ProductLock } from './productLock';
 import { sendEmail } from '@/lib/email/send';
 import { setFailedEmail, setReadyEmail } from '@/lib/email/templates';
 import { siteUrl } from '@/lib/stripe';
@@ -45,6 +46,8 @@ import {
  * loses every argument with it. Anything that must actually happen has to be down here.
  */
 type Staging = {
+  /** What the object actually is. Goes first, and applies to every shot including the hero. */
+  product?: ProductLock | null;
   /** The room read out of the finished hero. Used by every shot after the hero. */
   scene?: SceneLock | null;
   /** The room the planner chose. Used by the hero, which has no earlier shot to match. */
@@ -55,7 +58,13 @@ type Staging = {
 
 function stage(shot: ShotPlan, staging: Staging): ShotPlan {
   const parts: string[] = [];
-  if (staging.scene) parts.push(sceneClause(staging.scene));
+  // Order is precedence. The object comes before the room, which comes before its preparation,
+  // which comes before the framing -- a beautiful photograph of the wrong item is worth less than
+  // a plain photograph of the right one, so that is the order they should win arguments in.
+  if (staging.product) parts.push(productClause(staging.product, shot.classification));
+  // The scene lock's own description of the item is suppressed when a product lock is present: it
+  // is read from the generated hero and would otherwise be a second, contradictory specification.
+  if (staging.scene) parts.push(sceneClause(staging.scene, !staging.product));
   else if (staging.plannedSetting) parts.push(plannedSettingClause(staging.plannedSetting));
   if (staging.presentation) {
     const clause = presentationClause(staging.presentation, shot.classification);
@@ -241,6 +250,7 @@ export async function runPreview(jobId: string): Promise<void> {
     // and a hero photographed with the cushions shoved sideways propagates that too. Both get
     // fixed here or not at all.
     const heroResult = await generateOneShot(client, heroShot, job.sources, null, null, {
+      product: analysis.productLock,
       plannedSetting: analysis.environmentDescription,
       presentation: analysis.presentation,
     });
@@ -373,6 +383,7 @@ export async function runFullCampaign(jobId: string): Promise<void> {
           // continuity notes could not be written would go back to inheriting the seller's garage
           // one shot at a time.
           {
+            product: analysis.productLock,
             scene,
             plannedSetting: analysis.environmentDescription,
             presentation: analysis.presentation,

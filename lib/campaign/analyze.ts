@@ -298,6 +298,54 @@ with it, round it, or treat it as one of a fixed set of tiers.
 
 Requirements specific to this call:
 
+- productLock IS THE MOST IMPORTANT FIELD IN THIS ENTIRE OUTPUT. Fill it as though the rest of the
+  plan depended on it, because it does: it is injected verbatim into every shot, and it is the only
+  thing that keeps the delivered images showing the object the seller actually owns.
+
+  Why it exists. The image model receives reference photographs and AVERAGES them; it does not
+  treat one as a specification to match. Left to itself it draws a plausible member of the
+  category, not this object. Real sets have come back with the wrong number of sofa sections, a
+  warmer colour than the real fabric, a different control panel in every frame, rust in one image
+  and none in the next, and a top-loading washing machine rendered with a round front-loader door.
+  Text is what transfers. This field is that text.
+
+  WRITE IT TO BE CHECKED, NOT TO READ WELL. "A comfortable modern sectional" reproduces nothing and
+  cannot be wrong. "Six seat sections in one row plus a chaise at the LEFT end when facing it;
+  four back cushions" can be checked against a drawing and either holds or visibly fails. Every
+  field should be falsifiable in that way.
+
+    identity -- one line, in the words a buyer would search for.
+
+    configuration -- THE COUNTABLE FACTS, and the field that fails most often. How many units,
+    sections, seats, cushions, doors, drawers, shelves, burners, dials, wheels; how they are
+    arranged, stated left to right as somebody faces the item's front. Buyers count. If the
+    photographs show a five-piece modular sofa, "five modules: chaise at the left end, then three
+    armless seats, then a right-arm end piece" is the answer, and "a sectional sofa" is not. For a
+    pair of appliances say which unit is on the left.
+
+    form -- proportions and silhouette. Relative dimensions, the shape of arms, legs, edges, the
+    profile from the side. Enough that the wrong shape is recognisably the wrong shape.
+
+    colorAndMaterial -- colour WITH its undertone, the material, the weave or finish, and how the
+    surface takes light. "Pale sand-beige with a grey undertone, wide-wale corduroy, matte, the
+    ribs catching light along their crowns" -- not "beige fabric".
+
+    features -- hardware, controls, panels, badges, trim, EACH WITH WHERE IT IS. A control panel
+    with the right number of dials in the wrong order is a different machine. If the photographs
+    show a top-load washer with four dials at the back-left and a lid hinged at the rear, say
+    exactly that.
+
+    marks -- every visible mark, wear patch, stain, rust, chip, tear or damage, WITH ITS LOCATION
+    on the object. These are what stop the set drifting toward a clean example of the category,
+    and their locations are what stop a mark migrating between shots.
+
+    neverShow -- the likeliest WRONG answer, stated as a prohibition. This is not padding: the
+    model has a strong prior for what a category looks like, and no amount of positive description
+    outvotes a prior, so the absence has to be named. A top-load washer needs "NOT a front-loader;
+    it has no round glass door in the front panel". A four-section sofa needs "not a three-seat
+    sofa; not fewer or more than four sections". A worn item needs "not a clean showroom example".
+    Work out what a model would draw by default if it ignored the photographs, and forbid it.
+
 - environmentDescription is THE ONE ROOM every marketing shot in this campaign happens in, and it
   is now actually used -- it is built into the hero, and the rest of the set is matched to the
   hero. Describe it concretely enough to build: wall colour with its undertone and finish, floor
@@ -571,6 +619,31 @@ const analysisSchema = {
       required: ['mustPreserve', 'neverInvent', 'neverRemove'],
     },
     campaignThesis: { type: 'string' },
+    // What keeps it the same object across the set. Read from the source photographs here rather
+    // than from the generated hero, because a hero that reinvented the item would otherwise have
+    // its reinvention faithfully propagated to every shot behind it.
+    productLock: {
+      type: 'object',
+      additionalProperties: false,
+      properties: {
+        identity: { type: 'string' },
+        configuration: { type: 'string' },
+        form: { type: 'string' },
+        colorAndMaterial: { type: 'string' },
+        features: { type: 'array', items: { type: 'string' } },
+        marks: { type: 'array', items: { type: 'string' } },
+        neverShow: { type: 'array', items: { type: 'string' } },
+      },
+      required: [
+        'identity',
+        'configuration',
+        'form',
+        'colorAndMaterial',
+        'features',
+        'marks',
+        'neverShow',
+      ],
+    },
     environmentDescription: { type: 'string' },
     // The ten minutes before the shutter, decided per item. `leave` is required alongside `groom`
     // so the plan cannot describe tidying without naming what the tidying must not reach.
@@ -646,6 +719,7 @@ const analysisSchema = {
     'conditionSummary',
     'truthLock',
     'campaignThesis',
+    'productLock',
     'environmentDescription',
     'presentation',
     'shots',

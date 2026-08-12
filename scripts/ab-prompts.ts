@@ -53,6 +53,7 @@ import {
   type SceneLock,
 } from '../lib/campaign/sceneLock';
 import { presentationClause } from '../lib/campaign/presentation';
+import { productClause } from '../lib/campaign/productLock';
 import { STRATEGIES, strategyById, type PromptStrategy } from '../lib/campaign/strategies';
 import { MAX_IMAGES } from '../lib/config/pricing';
 import type { AnalysisResult, ImageQuality, ShotPlan, SourcePhoto } from '../lib/campaign/types';
@@ -202,7 +203,8 @@ async function generate(
   // preparation: this staging has to match lib/campaign/pipeline.ts exactly, or the harness stops
   // measuring the thing that actually ships.
   const parts: string[] = [];
-  if (scene) parts.push(sceneClause(scene));
+  if (analysis.productLock) parts.push(productClause(analysis.productLock, shot.classification));
+  if (scene) parts.push(sceneClause(scene, !analysis.productLock));
   else if (analysis.environmentDescription) {
     parts.push(plannedSettingClause(analysis.environmentDescription));
   }
@@ -496,6 +498,22 @@ async function main() {
   // so it is the part worth reading before spending money -- and the two halves are only safe read
   // together. A long groom list beside a short leave list is the shape of a set that tidies the
   // faults away, and that is visible here in a way it is not in the finished images.
+  // The single most useful thing to read before spending money. Every drift complaint so far --
+  // wrong section count, wrong colour, a control panel that changes between frames, a top-loader
+  // rendered with a front door -- is visible here as a vague or wrong line, minutes before it is
+  // visible as eight bad images.
+  if (analysis.productLock) {
+    const p = analysis.productLock;
+    console.log('\n  PRODUCT LOCK -- check this first; every image is held to it');
+    console.log(`    what      ${p.identity}`);
+    console.log(`    count     ${p.configuration}`);
+    console.log(`    form      ${p.form}`);
+    console.log(`    colour    ${p.colorAndMaterial}`);
+    (p.features ?? []).forEach((f, i) => console.log(`    ${i ? '     ' : 'feat '}     ${f}`));
+    (p.marks ?? []).forEach((m, i) => console.log(`    ${i ? '     ' : 'marks'}     ${m}`));
+    (p.neverShow ?? []).forEach((n, i) => console.log(`    ${i ? '     ' : 'never'}     ${n}`));
+  }
+
   if (analysis.environmentDescription) {
     console.log(`\n  Room chosen for the shoot:\n    ${analysis.environmentDescription}`);
   }

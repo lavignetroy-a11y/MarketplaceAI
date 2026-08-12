@@ -190,7 +190,18 @@ export async function readSceneFromHero(
  * anything the photographic brief says about settings. A contract that suggests "an ordinary
  * well-kept home" and a scene lock that says "this specific room" cannot both be advisory.
  */
-export function sceneClause(lock: SceneLock): string {
+export function sceneClause(lock: SceneLock, includeItem = true): string {
+  // The item half is suppressed whenever a product lock is carrying the object, and it should
+  // always be. This description is read out of the GENERATED hero, so if the hero drifted from the
+  // real item, this is a precise description of the drift -- and sitting next to a product lock
+  // read from the actual photographs, it is a second, contradictory specification. Two of those in
+  // one prompt is worse than either alone.
+  const itemSection = includeItem
+    ? `
+THE ITEM -- the same physical object, unchanged
+${lock.item}
+`
+    : '';
   return `
 THE SET -- ALREADY BUILT, ALREADY LIT, DO NOT REDESIGN IT
 This photograph belongs to a series. An earlier photograph in the same series has already been
@@ -216,9 +227,7 @@ Anything not listed under WHAT IS IN THIS ROOM is not there. If moving the camer
 space, the space stays empty. Do not furnish it, decorate it, or fill it with plants, rugs, art, or
 tables to improve the composition. An empty corner is correct.
 
-THE ITEM -- the same physical object, unchanged
-${lock.item}
-
+${itemSection}
 PLACEMENT
 ${lock.placement}
 The item does not move between shots. It is not re-arranged, re-oriented, or re-staged. If this
