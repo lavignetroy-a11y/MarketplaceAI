@@ -1,10 +1,164 @@
 import fs from 'fs';
 import path from 'path';
+import sharp from 'sharp';
 import type OpenAI from 'openai';
 import { MAX_IMAGES, MIN_IMAGES } from '@/lib/config/pricing';
-import { coverageCatalog, profileFor } from './categories';
+import { coverageBrief, profileFor, type CategoryProfile } from './categories';
 import { sanitizePresentation } from './presentation';
 import type { AnalysisResult, RequestedImageCount, SourcePhoto } from './types';
+
+/**
+ * Longest edge, in pixels, of the copies sent to the planner.
+ *
+ * A modern phone photograph is around 3000x4000, and at detail:'high' the vision encoder tiles it
+ * into something like two thousand tokens EACH. Six uploads is then twelve thousand tokens of
+ * image before a word of the brief, which is what put a six-photo couch over a 30k tokens-per-
+ * minute ceiling. At 1024 the same photograph costs a few hundred, and nothing the planner decides
+ * -- what the item is, what condition it is in, which shots the buyer needs -- turns on detail
+ * finer than that. The full-resolution originals are untouched and still go to the image model,
+ * which is the call where resolution actually buys something.
+ */
+const ANALYSIS_MAX_EDGE = 1024;
+
+/**
+ * How many uploads the planner is shown.
+ *
+ * Downscaling fixed the cost per photograph; this bounds the count, so a seller who uploads
+ * twenty-five phone pictures of one sofa cannot walk the planning call back over the token
+ * ceiling. Sampled evenly with the first and last always kept, because sellers tend to shoot the
+ * overall view first and the detail they are worried about last.
+ *
+ * Only the PLANNER sees the trimmed set. Every original still reaches the image model, and a shot
+ * can still name any of them by index -- `sourcePhotoIndex` and `referenceSourceIndices` continue
+ * to refer to positions in the full array.
+ */
+const ANALYSIS_MAX_PHOTOS = 10;
+
+function sampleForAnalysis<T>(items: T[], max: number): T[] {
+  if (items.length <= max) return items;
+  const picked = [items[0]];
+  const step = (items.length - 1) / (max - 1);
+  for (let i = 1; i < max - 1; i++) picked.push(items[Math.round(i * step)]);
+  picked.push(items[items.length - 1]);
+  return picked;
+}
+
+async function forAnalysis(source: SourcePhoto): Promise<string> {
+  try {
+    const resized = await sharp(source.data)
+      // EXIF orientation is applied rather than carried, since the resize would otherwise drop the
+      // tag and hand the planner a sideways sofa.
+      .rotate()
+      .resize(ANALYSIS_MAX_EDGE, ANALYSIS_MAX_EDGE, { fit: 'inside', withoutEnlargement: true })
+      .jpeg({ quality: 82 })
+      .toBuffer();
+    return `data:image/jpeg;base64,${resized.toString('base64')}`;
+  } catch {
+    // A photo sharp cannot read is still worth showing the planner at whatever size it arrived.
+    return `data:${source.mimeType};base64,${source.data.toString('base64')}`;
+  }
+}
+
+/**
+ * Retries the transient half of a 429 and refuses to retry the permanent half.
+ *
+ * "Rate limit reached" clears on its own within the minute and is worth waiting out. "Request too
+ * large for gpt-4o ... Limit 30000, Requested 31996" is the same status code and will fail
+ * identically forever, so retrying it just spends three minutes arriving at the same place with a
+ * less useful error message.
+ */
+async function withRateLimitRetry<T>(label: string, fn: () => Promise<T>): Promise<T> {
+  const delays = [20_000, 45_000, 75_000];
+  for (let attempt = 0; ; attempt++) {
+    try {
+      return await fn();
+    } catch (err) {
+      const e = err as { status?: number; message?: string };
+      if (e?.status !== 429) throw err;
+      if (/request too large/i.test(e.message ?? '')) {
+        throw new Error(
+          `The ${label} request is larger than this OpenAI account's per-minute token limit ` +
+            `(${e.message}). Fewer or smaller source photos will fit; raising the account's rate ` +
+            'limit removes the ceiling entirely.',
+        );
+      }
+      if (attempt >= delays.length) throw err;
+      const seconds = delays[attempt] / 1000;
+      console.warn(`[analyze] ${label} hit a rate limit; retrying in ${seconds}s`);
+      await new Promise((resolve) => setTimeout(resolve, delays[attempt]));
+    }
+  }
+}
+
+const classificationSchema = {
+  type: 'object',
+  additionalProperties: false,
+  properties: {
+    itemType: { type: 'string' },
+    category: { type: 'string' },
+    isMatchingSet: { type: 'boolean' },
+  },
+  required: ['itemType', 'category', 'isMatchingSet'],
+} as const;
+
+/**
+ * Which coverage model this item needs, decided in its own cheap call.
+ *
+ * The catalog used to send all nine categories because routing needed the category and the
+ * category came out of the same call that needed the table. That was a fair trade at four
+ * kilobytes. With a preparation list on every profile it is twenty, of which eight ninths is a
+ * brief for something the seller is not selling -- both a bill and a distraction. A separate pass
+ * at detail:'low' costs a few hundred tokens and buys back all of it.
+ */
+async function classifyItem(
+  client: OpenAI,
+  model: string,
+  images: string[],
+  sellerNotes: string,
+): Promise<CategoryProfile> {
+  try {
+    const completion = await withRateLimitRetry('classification', () =>
+      client.chat.completions.create({
+        model,
+        messages: [
+          {
+            role: 'system',
+            content:
+              'Name what is being sold, in as few words as a listing title would use. ' +
+              'itemType is the specific thing ("four-seat velvet sectional sofa", "front-load ' +
+              'washing machine"); category is the broad family ("furniture", "appliance", ' +
+              '"vehicle", "tool", "jewelry", "fitness", "electronics"); isMatchingSet is true ' +
+              'when several units of the same thing are being sold together.',
+          },
+          {
+            role: 'user',
+            content: [
+              { type: 'text' as const, text: `seller notes: ${sellerNotes.trim() || 'none'}` },
+              ...images.map((url) => ({
+                type: 'image_url' as const,
+                image_url: { url, detail: 'low' as const },
+              })),
+            ],
+          },
+        ],
+        response_format: {
+          type: 'json_schema',
+          json_schema: { name: 'item_classification', strict: true, schema: classificationSchema },
+        },
+      }),
+    );
+    const raw = completion.choices[0]?.message?.content;
+    if (!raw) throw new Error('no content');
+    const c = JSON.parse(raw) as { itemType: string; category: string; isMatchingSet: boolean };
+    return profileFor(c.itemType, c.category, c.isMatchingSet);
+  } catch (err) {
+    // Falling back to the whole catalog would be the obvious move and the wrong one: the most
+    // likely reason this failed is that the account is already at its token ceiling, and the
+    // catalog is four times the size. Route off the seller's own words instead.
+    console.warn('[analyze] classification failed, routing from seller notes instead:', err);
+    return profileFor(sellerNotes, sellerNotes, /\b(set|pair|both|matching)\b/i.test(sellerNotes));
+  }
+}
 
 const MASTER_PROMPT = fs.readFileSync(
   path.join(process.cwd(), 'lib/campaign/master-improvement-logic.txt'),
@@ -512,45 +666,57 @@ export async function analyzeCampaign(
 ): Promise<AnalysisResult> {
   const model = process.env.OPENAI_TEXT_MODEL || 'gpt-4o';
 
-  const imageParts = sources.flatMap((source, i) => [
-    { type: 'text' as const, text: `SOURCE INDEX ${i}:` },
-    {
-      type: 'image_url' as const,
-      image_url: {
-        url: `data:${source.mimeType};base64,${source.data.toString('base64')}`,
-        detail: 'high' as const,
-      },
-    },
+  // Indices are sampled rather than photos, so every SOURCE INDEX label the planner sees is still
+  // that photo's real position in the full array -- sourcePhotoIndex and referenceSourceIndices
+  // are resolved against the untrimmed sources at generation time.
+  const shown = sampleForAnalysis(
+    sources.map((source, index) => ({ source, index })),
+    ANALYSIS_MAX_PHOTOS,
+  );
+  const encoded = await Promise.all(shown.map(({ source }) => forAnalysis(source)));
+
+  const imageParts = shown.flatMap(({ index }, n) => [
+    { type: 'text' as const, text: `SOURCE INDEX ${index}:` },
+    { type: 'image_url' as const, image_url: { url: encoded[n], detail: 'high' as const } },
   ]);
 
+  const profile = await classifyItem(client, model, encoded, sellerNotes);
+
   const userText = [
-    coverageCatalog(requestedCount),
+    coverageBrief(profile, requestedCount),
     '',
     `requested_final_image_count: ${requestedCount}`,
     `seller_notes: ${sellerNotes.trim() || 'none provided'}`,
-    `source photo count: ${sources.length} (attached below, each preceded by its 0-based ` +
-      `"SOURCE INDEX" label -- use that exact number for any shot's sourcePhotoIndex)`,
+    `source photo count: ${sources.length}` +
+      (shown.length < sources.length
+        ? ` (${shown.length} of them attached below, sampled across the set; the indices are the ` +
+          'real positions and are not consecutive)'
+        : ' (attached below)') +
+      ', each preceded by its 0-based "SOURCE INDEX" label -- use that exact number for any ' +
+      "shot's sourcePhotoIndex",
     'Analyze these source photographs as one item or matching set and produce the structured campaign plan.',
   ].join('\n');
 
-  const completion = await client.chat.completions.create({
-    model,
-    messages: [
-      { role: 'system', content: SYSTEM_PROMPT(logic === 'v4' ? INFERENCE_V4 : INFERENCE_V5) },
-      {
-        role: 'user',
-        content: [{ type: 'text', text: userText }, ...imageParts],
+  const completion = await withRateLimitRetry('campaign planning', () =>
+    client.chat.completions.create({
+      model,
+      messages: [
+        { role: 'system', content: SYSTEM_PROMPT(logic === 'v4' ? INFERENCE_V4 : INFERENCE_V5) },
+        {
+          role: 'user',
+          content: [{ type: 'text', text: userText }, ...imageParts],
+        },
+      ],
+      response_format: {
+        type: 'json_schema',
+        json_schema: {
+          name: 'campaign_analysis',
+          strict: true,
+          schema: analysisSchema,
+        },
       },
-    ],
-    response_format: {
-      type: 'json_schema',
-      json_schema: {
-        name: 'campaign_analysis',
-        strict: true,
-        schema: analysisSchema,
-      },
-    },
-  });
+    }),
+  );
 
   const raw = completion.choices[0]?.message?.content;
   if (!raw) {
@@ -624,7 +790,9 @@ export async function analyzeCampaign(
       'standard', 'marketing', 'evidence', 'secondary', 'primary', 'image', 'shot',
       'additional', 'extra', 'other', 'general', 'default', 'main', 'photo',
     ]);
-    const profile = profileFor(
+    // Re-routed from the planner's own identification rather than reusing the pre-pass profile:
+    // the planner saw the photographs at full detail and its answer is the better one.
+    const repairProfile = profileFor(
       parsed.productIdentity.itemType,
       parsed.productIdentity.category,
       parsed.productIdentity.isMatchingSet,
@@ -635,15 +803,15 @@ export async function analyzeCampaign(
     for (const shot of parsed.shots) {
       const role = (shot.imageRole || '').trim().toLowerCase();
       if (shot.sequenceNumber === 1) {
-        if (!role || GENERIC_ROLES.has(role)) shot.imageRole = profile.shots[0]?.role ?? 'hero';
+        if (!role || GENERIC_ROLES.has(role)) shot.imageRole = repairProfile.shots[0]?.role ?? 'hero';
         continue;
       }
       if (!role || GENERIC_ROLES.has(role)) {
         // Walk the table for a role not already used, so repaired shots stay distinguishable.
         const used = new Set(parsed.shots.map((x) => x.imageRole));
-        while (nextRole < profile.shots.length && used.has(profile.shots[nextRole].role)) nextRole++;
+        while (nextRole < repairProfile.shots.length && used.has(repairProfile.shots[nextRole].role)) nextRole++;
         shot.imageRole =
-          profile.shots[nextRole]?.role ?? `${shot.subjectScope}_${shot.sequenceNumber}`;
+          repairProfile.shots[nextRole]?.role ?? `${shot.subjectScope}_${shot.sequenceNumber}`;
         nextRole++;
       }
     }

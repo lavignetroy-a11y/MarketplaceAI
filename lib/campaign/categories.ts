@@ -365,7 +365,17 @@ export function profileFor(itemType: string, category: string, isSet: boolean): 
   return best;
 }
 
-/** The table, rendered for the planner, trimmed to the depth this purchase actually buys. */
+/**
+ * The table, rendered for the planner, trimmed to the depth this purchase actually buys.
+ *
+ * ONE profile, not all nine. Sending the whole catalog was the original design, on the reasoning
+ * that routing needs the category and the category comes out of the same call that needs the
+ * table -- true, and a fair trade at four kilobytes. Adding a preparation list to every profile
+ * took it to twenty, eight ninths of it a brief for something the seller is not selling. A
+ * separate classification pass at low image detail now decides the route for a few hundred tokens
+ * (see classifyItem in analyze.ts), which is both cheaper and a great deal more likely to be
+ * followed than a menu the planner has to choose from mid-task.
+ */
 export function coverageBrief(profile: CategoryProfile, count: number): string {
   const rows = profile.shots
     .slice()
@@ -401,53 +411,5 @@ ${profile.grooming.map((g) => `  - ${g}`).join('\n')}
 This table is a model of buyer priorities, not a template to fill. Adapt roles to what the source
 photographs actually support, drop any shot the evidence cannot carry, and replace it with the
 next supported shot down the list rather than reducing the count.
-`.trim();
-}
-
-/**
- * Every profile, rendered for one planning call.
- *
- * All of them go in rather than routing to one first, because routing needs the category and the
- * category comes out of the same call that needs the table. A second classification pass would fix
- * that at the cost of another round trip through every source photograph; the whole catalog is
- * about four kilobytes against a sixty-kilobyte system prompt, which is the cheaper trade.
- */
-export function coverageCatalog(count: number): string {
-  const blocks = CATEGORY_PROFILES.map((p) => {
-    const rows = p.shots
-      .slice()
-      .sort((a, b) => a.priority - b.priority)
-      .map((s) => `    ${String(s.priority).padStart(2)}. ${s.role.padEnd(28)} [${s.scope}]  ${s.answers}`)
-      .join('\n');
-    const prep = p.grooming.map((g) => `    - ${g}`).join('\n');
-    return `--- ${p.key.toUpperCase()} ---\n${rows}\n  GUIDANCE: ${p.guidance}\n  PREPARATION BEFORE THE SHUTTER:\n${prep}`;
-  }).join('\n\n');
-
-  return `
-CATEGORY COVERAGE MODELS
-
-Identify which of these categories this item belongs to, then plan from THAT category's list.
-Buyers of different things need to see different things, and applying furniture logic to a vehicle
-produces four handsome three-quarter views and no dashboard -- a set that answers nothing the buyer
-was actually asking. Use "general" only when nothing else fits.
-
-Priority is the order coverage earns its place as the count grows. This purchase is ${count}
-images, so work down the matching list and stop when the budget is spent, unless the actual
-photographs make a lower-priority shot clearly more valuable than a higher one.
-
-SCOPE MEANS:
-  full_set        every unit visible together; this is what establishes quantity
-  representative  ONE unit, shown whole -- the SAME physical unit in every such shot
-  detail          part of one unit, close in
-
-${blocks}
-
-These are models of buyer priority, not templates to fill. Adapt each role to what the source
-photographs actually support.
-
-Each category also carries a PREPARATION list -- the ten minutes a stylist spends on that kind of
-object before the shutter opens. Read the one for your category and use it to fill the campaign's
-"presentation" object with actions specific to THIS item. None of it may alter the item's real
-condition; see the PRESENTATION section of the implementation note for exactly where that line is.
 `.trim();
 }
