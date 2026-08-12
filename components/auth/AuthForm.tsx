@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
-import { AlertCircle, ArrowRight, Loader2, Lock, Mail } from 'lucide-react';
+import { AlertCircle, ArrowRight, Loader2, Lock, Mail, MailCheck } from 'lucide-react';
 import { getSupabaseBrowserClient } from '@/lib/supabase/client';
 import { Logo } from '@/components/marketing/Logo';
 
@@ -17,6 +17,19 @@ export function AuthForm({ mode }: { mode: Mode }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+  /**
+   * Signup succeeded and the account is waiting on an emailed confirmation link.
+   *
+   * This gets its own screen rather than a line of text under the password field. Previously the
+   * message sat between the input and the button, in the same size and weight as an error, on a
+   * page the person fully expected to navigate away from -- so it read as noise, they pressed the
+   * button again, and Supabase rate-limited them for repeat signups on an account that already
+   * existed. At that point they are stuck, with no idea an email was ever sent.
+   *
+   * At this moment the only thing that matters is "go and open your inbox", so that is the whole
+   * page.
+   */
+  const [awaitingConfirmation, setAwaitingConfirmation] = useState<string | null>(null);
 
   const isSignUp = mode === 'signup';
 
@@ -35,7 +48,7 @@ export function AuthForm({ mode }: { mode: Mode }) {
         // With email confirmation enabled there's no session yet -- say so rather than
         // bouncing to an account page that will look signed out.
         if (!data.session) {
-          setNotice('Check your email to confirm your account, then sign in.');
+          setAwaitingConfirmation(email);
           return;
         }
       } else {
@@ -49,6 +62,49 @@ export function AuthForm({ mode }: { mode: Mode }) {
     } finally {
       setBusy(false);
     }
+  }
+
+  if (awaitingConfirmation) {
+    return (
+      <div className="mx-auto w-full max-w-[420px]">
+        <Link href="/" className="mb-10 inline-block">
+          <Logo />
+        </Link>
+
+        <span className="inline-flex h-12 w-12 items-center justify-center rounded-full bg-marketplace-violet/10">
+          <MailCheck className="h-6 w-6 text-marketplace-violet" strokeWidth={1.75} />
+        </span>
+
+        <h1 className="mt-5 text-[2rem] font-[650] leading-[1.05] tracking-[-0.04em] text-marketplace-ink">
+          Check your email
+        </h1>
+        <p className="mt-3 text-[0.9375rem] leading-[1.55] text-marketplace-muted">
+          We sent a confirmation link to{' '}
+          <span className="font-medium text-marketplace-ink">{awaitingConfirmation}</span>. Open it
+          to finish setting up your account, then come back and sign in.
+        </p>
+        <p className="mt-4 text-[0.875rem] leading-[1.55] text-marketplace-muted">
+          Nothing yet? Check your spam folder. The link can take a minute to arrive, and pressing
+          &ldquo;create account&rdquo; again will not send another &mdash; it will lock you out for
+          a while instead.
+        </p>
+
+        <Link
+          href="/signin"
+          className="mt-8 inline-flex min-h-[50px] w-full items-center justify-center gap-2 rounded-[14px] bg-violet-blue text-[0.9375rem] font-semibold text-white shadow-[0_10px_26px_rgba(122,92,255,0.32)] transition-transform hover:-translate-y-px"
+        >
+          Go to sign in <ArrowRight className="h-4 w-4" />
+        </Link>
+
+        <p className="mt-6 text-[0.875rem] text-marketplace-muted">
+          You don&rsquo;t need an account to create a set &mdash;{' '}
+          <Link href="/upload" className="underline underline-offset-2 hover:text-marketplace-ink">
+            start without signing in
+          </Link>
+          .
+        </p>
+      </div>
+    );
   }
 
   return (
