@@ -4,12 +4,10 @@ import { ArrowLeft, HelpCircle, Mail, ShieldAlert } from 'lucide-react';
 import { Logo } from '@/components/marketing/Logo';
 import { Footer } from '@/components/marketing/Footer';
 import { IconGradientDefs, gradientStroke } from '@/components/marketing/primitives';
+import { ABUSE_EMAIL, SUPPORT_EMAIL } from '@/lib/config/contact';
 
 export const metadata: Metadata = { title: 'Contact · Marketplace / AI' };
 
-// TODO: replace with your real addresses before launch.
-const SUPPORT_EMAIL = 'support@example.com';
-const ABUSE_EMAIL = 'abuse@example.com';
 
 const ROUTES = [
   {

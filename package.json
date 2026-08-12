@@ -13,7 +13,8 @@
     "studio:multiview": "tsx scripts/try-multiview.ts",
     "ab": "tsx scripts/ab-prompts.ts",
     "refine": "tsx scripts/refine-prompt.ts",
-    "ab:all": "tsx scripts/ab-matrix.ts"
+    "ab:all": "tsx scripts/ab-matrix.ts",
+    "preflight": "tsx scripts/preflight.ts"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.112.2",
