@@ -48,30 +48,42 @@ export async function POST(_req: NextRequest, { params }: { params: Promise<{ id
     return NextResponse.json({ error: 'Not ready for checkout yet.' }, { status: 409 });
   }
 
-  const session = await stripe().checkout.sessions.create({
-    mode: 'payment',
-    line_items: [
-      {
-        quantity: 1,
-        price_data: {
-          currency: 'usd',
-          unit_amount: job.priceCents,
-          product_data: {
-            name: `${job.requestedCount} finished listing images`,
-            description: 'A complete, coordinated set generated from your own photos.',
+  // Stripe rejects for reasons only Stripe can explain -- a mistyped key, an account that cannot
+  // yet accept charges, an amount below the minimum. Letting those throw produced a 500 with an
+  // empty body, which tells the seller nothing and tells us nothing either. Catch and relay.
+  try {
+    const session = await stripe().checkout.sessions.create({
+      mode: 'payment',
+      line_items: [
+        {
+          quantity: 1,
+          price_data: {
+            currency: 'usd',
+            unit_amount: job.priceCents,
+            product_data: {
+              name: `${job.requestedCount} finished listing images`,
+              description: 'A complete, coordinated set generated from your own photos.',
+            },
           },
         },
-      },
-    ],
-    // The campaign id travels with the session so the webhook knows what was bought without
-    // trusting anything the browser sends back.
-    metadata: { campaignId: id },
-    success_url: `${siteUrl()}/upload?campaign=${id}&paid=1`,
-    cancel_url: `${siteUrl()}/upload?campaign=${id}&canceled=1`,
-  });
+      ],
+      // The campaign id travels with the session so the webhook knows what was bought without
+      // trusting anything the browser sends back.
+      metadata: { campaignId: id },
+      success_url: `${siteUrl()}/upload?campaign=${id}&paid=1`,
+      cancel_url: `${siteUrl()}/upload?campaign=${id}&canceled=1`,
+    });
 
-  if (!session.url) {
-    return NextResponse.json({ error: 'Stripe did not return a checkout URL.' }, { status: 502 });
+    if (!session.url) {
+      return NextResponse.json({ error: 'Stripe did not return a checkout URL.' }, { status: 502 });
+    }
+    return NextResponse.json({ url: session.url });
+  } catch (err) {
+    // Stripe's own message names the problem precisely ("Invalid API Key provided", "amount must
+    // be at least ..."), and it describes this server's configuration rather than anything about
+    // the buyer, so it is safe and useful to pass through.
+    const message = err instanceof Error ? err.message : 'Stripe rejected the checkout request.';
+    console.error(`[checkout] Stripe rejected campaign ${id}:`, err);
+    return NextResponse.json({ error: `Stripe: ${message}` }, { status: 502 });
   }
-  return NextResponse.json({ url: session.url });
 }
