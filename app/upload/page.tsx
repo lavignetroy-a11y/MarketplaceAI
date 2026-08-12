@@ -94,6 +94,13 @@ type CampaignState = {
 
 const TERMINAL = ['needs_more_evidence', 'preview_ready', 'completed', 'incomplete', 'failed'];
 
+/**
+ * How long to keep watching for the payment webhook after returning from Stripe, in poll ticks.
+ * Three minutes: the webhook normally lands in under a second, and anything past this is a real
+ * failure the seller needs telling about rather than a spinner to stare at.
+ */
+const MAX_WEBHOOK_POLLS = 60;
+
 /** The funnel: choose coverage -> upload -> free watermarked preview -> pay -> full set. */
 export default function UploadPage() {
   return (
@@ -127,6 +134,22 @@ function UploadFlow() {
 
   const isProcessing = campaign !== null && !TERMINAL.includes(campaign.status);
 
+  // Returning from Stripe is a race the page used to lose.
+  //
+  // `preview_ready` is a terminal status, so the poll never started -- and that is exactly the
+  // status a campaign still has in the moment Stripe redirects the buyer back, because the webhook
+  // has not landed yet. The page fetched once, saw a terminal status, stopped looking, and sat
+  // there showing the watermarked preview while the server generated the whole paid set behind it.
+  // A customer who had just paid saw one image and no sign anything was happening.
+  //
+  // So while we know a payment was attempted, keep watching until the server confirms it.
+  const returnedFromCheckout = searchParams.get('paid') === '1';
+  const [webhookPolls, setWebhookPolls] = useState(0);
+  const awaitingPayment =
+    returnedFromCheckout && campaign !== null && !campaign.paid && webhookPolls < MAX_WEBHOOK_POLLS;
+  const paymentUnconfirmed =
+    returnedFromCheckout && campaign !== null && !campaign.paid && webhookPolls >= MAX_WEBHOOK_POLLS;
+
   // Arriving from account history (or a bookmarked link) with ?campaign=<id>: load that set
   // rather than showing an empty upload form.
   const campaignParam = searchParams.get('campaign');
@@ -152,19 +175,22 @@ function UploadFlow() {
   }, [campaignParam]);
 
   useEffect(() => {
-    if (!campaign || !isProcessing) return;
+    if (!campaign || (!isProcessing && !awaitingPayment)) return;
     const timer = setInterval(async () => {
       try {
         const res = await fetch(`/api/campaigns/${campaign.id}`);
         const data = await readJson(res, 'Checking status');
         if (!res.ok) throw new Error(String(data.error || 'Failed to check status.'));
         setCampaign(data as unknown as CampaignState);
+        // Counted here rather than in render, so the limit measures elapsed waiting rather than
+        // however many times React chose to re-render.
+        setWebhookPolls((n) => n + 1);
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Failed to check status.');
       }
     }, POLL_MS);
     return () => clearInterval(timer);
-  }, [campaign, isProcessing]);
+  }, [campaign, isProcessing, awaitingPayment]);
 
   // Object URLs for local thumbnails must be revoked or they leak for the page's lifetime.
   useEffect(() => () => previews.forEach((url) => URL.revokeObjectURL(url)), [previews]);
@@ -501,6 +527,28 @@ function UploadFlow() {
                 className="mt-6 rounded-brand border border-marketplace-error/30 bg-marketplace-error/[0.06] p-4 text-[0.875rem] text-marketplace-error"
               >
                 {error}
+              </p>
+            )}
+
+            {awaitingPayment && (
+              <p
+                role="status"
+                className="mt-6 flex items-center gap-3 rounded-brand border border-marketplace-line/60 bg-white/80 p-4 text-[0.875rem] text-marketplace-muted"
+              >
+                <Loader2 className="h-4 w-4 shrink-0 animate-spin text-marketplace-violet" />
+                Payment received. Confirming with our server and starting your set&hellip;
+              </p>
+            )}
+
+            {paymentUnconfirmed && (
+              <p
+                role="alert"
+                className="mt-6 rounded-brand border border-marketplace-warning/40 bg-marketplace-warning/[0.08] p-4 text-[0.875rem] text-marketplace-ink"
+              >
+                <span className="font-semibold">Your payment went through, but we have not been
+                able to confirm it.</span>{' '}
+                Nothing further has been charged. Keep this page&rsquo;s address &mdash; it is the
+                link to your set &mdash; and contact us and we will finish it by hand.
               </p>
             )}
 
