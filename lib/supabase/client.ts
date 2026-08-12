@@ -1,6 +1,7 @@
 'use client';
 
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
+import { supabaseAnonKey, supabaseUrl } from './config';
 
 // Browser-side Supabase client, used for auth (sign in / sign up / session) and for reading
 // the signed-in user's own rows through row-level security.
@@ -16,8 +17,10 @@ let cached: SupabaseClient | null = null;
 export function getSupabaseBrowserClient(): SupabaseClient | null {
   if (cached) return cached;
 
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  // Placeholder values count as unconfigured -- see ./config. Otherwise the browser builds a
+  // client against your-project.supabase.co and every sign-in attempt fails on DNS.
+  const url = supabaseUrl();
+  const anonKey = supabaseAnonKey();
   if (!url || !anonKey) return null;
 
   cached = createClient(url, anonKey, {
@@ -28,6 +31,6 @@ export function getSupabaseBrowserClient(): SupabaseClient | null {
 
 export function isSupabaseConfigured(): boolean {
   return Boolean(
-    process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
+    supabaseUrl() && supabaseAnonKey(),
   );
 }

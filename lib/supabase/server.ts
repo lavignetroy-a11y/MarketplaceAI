@@ -1,4 +1,5 @@
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
+import { supabaseServiceKey, supabaseUrl } from './config';
 
 // Server-side Supabase client using the service-role key, for the generation pipeline: it
 // writes campaign rows and uploads generated images on behalf of a user, bypassing RLS.
@@ -12,8 +13,10 @@ let cached: SupabaseClient | null = null;
 export function getSupabaseAdminClient(): SupabaseClient | null {
   if (cached) return cached;
 
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  // Placeholder values count as unconfigured -- see lib/supabase/config.ts. A client built
+  // against your-project.supabase.co fails every write on a hostname that does not resolve.
+  const url = supabaseUrl();
+  const serviceKey = supabaseServiceKey();
   if (!url || !serviceKey) return null;
 
   cached = createClient(url, serviceKey, {
@@ -23,5 +26,5 @@ export function getSupabaseAdminClient(): SupabaseClient | null {
 }
 
 export function isSupabaseServerConfigured(): boolean {
-  return Boolean(process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY);
+  return Boolean(supabaseUrl() && supabaseServiceKey());
 }
