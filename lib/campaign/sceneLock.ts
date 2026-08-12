@@ -109,6 +109,40 @@ the shadows fall. Every later shot has to obey the same lighting, whatever angle
 Write plainly and densely. No adjectives that carry no information. No commentary.
 `.trim();
 
+/**
+ * The hero's half of the scene story: the room the campaign CHOSE, before one exists to read.
+ *
+ * The comment at the top of this file records that `environmentDescription` was computed and
+ * dropped. Reading the room back out of the hero fixed continuity across the set but not this,
+ * because it can only propagate whatever the hero came back with -- and the hero is produced by an
+ * edit call anchored on the seller's own photographs, which is an enormous pull toward the seller's
+ * own garage. Continuity then faithfully carries the garage into all twelve images.
+ *
+ * So the room is prescribed first and read back second. The planner decides the room, the hero is
+ * told to build it, and `readSceneFromHero` records whatever actually got built so the rest of the
+ * set matches reality rather than intent.
+ */
+export function plannedSettingClause(environmentDescription: string): string {
+  const description = environmentDescription.trim();
+  if (!description) return '';
+  return `
+THE SET -- BUILD THIS ROOM, DO NOT INHERIT ONE
+Every photograph in this series happens in one room, and that room is described below. It is not
+taken from the reference photographs. Their backgrounds are evidence about the item and nothing
+else, and whatever the seller happened to be standing in -- a garage, a driveway, a storage room,
+a cluttered corner, a room mid-move -- is discarded.
+
+Build this room instead:
+
+${description}
+
+Place the item in that room and photograph it there. Nothing from the reference photographs' own
+surroundings appears in the frame: no garage door, no concrete slab, no driveway or yard, no
+storage racks, boxes, bins, laundry, tools, other items for sale, or parked cars. If a reference
+shows the item in one of those places, it is simply somewhere else today.
+`.trim();
+}
+
 export async function readSceneFromHero(
   client: OpenAI,
   heroPng: Buffer,

@@ -23,6 +23,13 @@
 // Hence: no palette, no material, no styling language here. Every clause is about camera, light,
 // and render quality -- things that are true of the photograph rather than of the object. Anything
 // that could restyle the item belongs in the truth lock's forbidden list, not in this file.
+//
+// ONE EXCEPTION, ADDED DELIBERATELY: the presentation standard (lib/campaign/presentation.ts).
+// It is not styling and it is not restyling -- it is the ten minutes a stylist spends squaring
+// cushions and brushing nap before any real shoot, and it belongs with the photography because it
+// is part of taking a photograph properly rather than part of describing an object.
+
+import { PRESENTATION_EVIDENCE, PRESENTATION_STANDARD } from './presentation';
 
 /**
  * Shared by both variants. Realism failures are what read as "AI" to a buyer scrolling a
@@ -37,8 +44,12 @@ Real material response: fabric reads as woven fabric with visible weave and nap,
 with grain, metal as metal with specular highlights, plastic as plastic. Surfaces must not go
 smooth, waxy, or plastic-looking -- that melted, airbrushed finish is the single most common
 tell that an image was generated, and it is disqualifying here.
-Keep small real-world imperfection: fabric creases where a seat has been sat in, slight
-irregularity in seams and stitching, minor floor and wall texture. Do not smooth these away.
+Keep the small irregularity that real materials and real manufacturing have: seams and stitching
+that are not machine-perfect, weave that is not perfectly uniform, an edge that is not perfectly
+straight, minor floor and wall texture, a contact shadow that is not perfectly even. A
+well-presented item is still a used object photographed in somebody's house, and it must not go
+smooth, uniform or waxy. (This clause is about material and manufacture. It is not licence to
+reproduce untidiness, and it never reduces the item's own real wear, which is governed below.)
 DEEP FOCUS: the whole frame is in focus, front to back. Do not blur or soften the background.
 Simulated shallow depth of field is a second common tell -- a background that is soft but not
 optically soft reads instantly as fake. When in doubt, render it sharp.
@@ -73,12 +84,24 @@ Accurate white balance and a clean, correct exposure -- bright and open, but nev
 Natural contrast with detail held in both highlights and shadows. A trace of fine film-like
 grain. No HDR, no glow or bloom, no vignette, no heavy colour grading, no oversaturation.
 
-SETTING
-An ordinary, well-kept home -- the kind a real person lives in. Uncluttered but not empty, and
-never a showroom or a luxury magazine interior. Plain walls, at most one simple framed print, a
-plain floor. If this shot names a specific location, that location replaces this one entirely;
-carry the same restraint across to it. Keep the backdrop simple and reasonably close behind the
-item; avoid deep views into distant foliage, where rendering breaks down.
+SETTING -- BUILD IT, DO NOT INHERIT IT
+The reference photographs are evidence about the ITEM ONLY: its form, proportions, materials,
+colour, hardware and condition. Their surroundings are not part of the brief and do not appear in
+this photograph. Whatever room the seller happened to be standing in is discarded and replaced.
+
+None of this survives into the frame, however plainly a reference photograph shows it: garage
+doors, bare concrete, a driveway, a yard, a fence, pavement, storage racks, stacked boxes, bins,
+tools, laundry, other items for sale, parked cars, a shop or warehouse floor, a cluttered corner,
+or a room mid-move. If a reference shows the item in one of those places, the item is being
+photographed somewhere else today.
+
+What replaces it: an ordinary, well-kept home -- the kind a real person lives in. Uncluttered but
+not empty, and never a showroom or a luxury magazine interior. Plain walls, at most one simple
+framed print, a plain floor. If this shot names a specific location, that location replaces this
+paragraph entirely; carry the same restraint across to it. Keep the backdrop simple and reasonably
+close behind the item; avoid deep views into distant foliage, where rendering breaks down.
+
+${PRESENTATION_STANDARD}
 
 ${REALISM}
 `.trim();
@@ -108,6 +131,8 @@ lighting, no atmosphere, no mood.
 WHAT MAY IMPROVE
 Only the photography: exposure, white balance, focus, noise, perspective correction, and crop.
 The item, its wear, its dirt, its damage, and its surroundings stay exactly as they are.
+
+${PRESENTATION_EVIDENCE}
 
 ${REALISM}
 `.trim();

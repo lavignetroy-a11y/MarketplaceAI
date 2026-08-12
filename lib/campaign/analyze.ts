@@ -3,6 +3,7 @@ import path from 'path';
 import type OpenAI from 'openai';
 import { MAX_IMAGES, MIN_IMAGES } from '@/lib/config/pricing';
 import { coverageCatalog, profileFor } from './categories';
+import { sanitizePresentation } from './presentation';
 import type { AnalysisResult, RequestedImageCount, SourcePhoto } from './types';
 
 const MASTER_PROMPT = fs.readFileSync(
@@ -77,12 +78,89 @@ Concretely, when planning:
 Write each shot's prompt so it describes where the camera is relative to the item, rather than
 describing a new scene to build.
 
+PRESENTATION -- THE TEN MINUTES BEFORE THE SHUTTER. THIS OVERRIDES THE DOCUMENT ABOVE.
+
+The document above forbids improving "cleanliness", and lists wrinkle, compression, sagging and
+soiling among the things that may never be removed. Read literally -- which is how an image model
+reads -- that instructs a photographer to faithfully reproduce dust, a cushion somebody shoved
+sideways on their way past, and a velvet nap rubbed four directions by a hand. That is not what the
+document is protecting. This section resolves it.
+
+It conflates two different things:
+
+  CONDITION is what the item IS. It survives cleaning and tidying, because it is the item.
+  STATE is how the item happened to be sitting in the minute somebody took a snapshot of it. It
+  survives nothing, because it is not the item at all.
+
+A dead cushion is condition; a cushion shoved sideways is state. A set-in stain is condition; dust
+is state. Velvet worn bald on the arm is condition; velvet brushed the wrong way is state.
+Condition is owed to the buyer in full. State is owed to nobody.
+
+They are told apart by the seller's own hands. Anything the seller could put right in ten minutes
+before the buyer arrives -- no tools, no parts, no money, no repair, no professional -- is state,
+and the photographs may show it already put right, because that is genuinely how the item will be
+handed over. Everything else is condition, and is photographed exactly as it is.
+
+Produce a "presentation" object accordingly, and do not leave it thin -- this is not boilerplate,
+it is a decision about this specific object, and it is the difference between a listing photograph
+and a snapshot.
+
+  presentation.groom -- the specific actions. Start from the PREPARATION list on the category you
+  chose, then make every entry concrete to THIS item and ITS materials. "Tidy it up" is worthless.
+  "Both seat cushions sat square in the frame, front edges level, and the crushed velvet brushed
+  from the back rail toward the front edge so the whole seat reads one direction" is an
+  instruction. Six to ten entries is normal. Name the materials you can actually see.
+
+  presentation.leave -- the specific real faults that must survive all of it and be plainly
+  visible in the finished photographs. Go through conditionSummary and truthLock.neverRemove and
+  write down, in plain physical terms, every fault that grooming could plausibly erase, with WHERE
+  it is: "the tear on the outer face of the left arm, about 10cm long, stays open and visible",
+  "the dark stain on the right seat cushion stays", "the right cushion's foam is collapsed and it
+  keeps its dished, flattened profile -- it is not plumped back up". If the item has visible
+  faults, this list is never empty. An empty leave list beside a full groom list is the exact
+  shape of a fraudulent set.
+
+THE STRUCTURAL-SAG LINE, because it is the one that looks like tidying and is not. A cushion may
+be sat square and plumped to the loft its foam still holds. A cushion whose foam is dead stays
+dead: collapsed profile, dished seat, slack wrinkled cover. Same for a sunken seat, a drooping
+arm, a bowed shelf, a sagging frame. Plumping restores the shape a sound cushion returns to on its
+own; it does not give a broken-down one back its loft. If you are unsure which one you are looking
+at, it is the broken-down one -- put it in leave, not groom.
+
+NEVER put any of these in groom: repairing, restoring, refinishing, reupholstering, repainting,
+resurfacing, replating, sanding, welding, shampooing, deep-cleaning or steam-cleaning anything;
+removing, concealing, minimising, softening, filling, buffing out or touching up any stain,
+scratch, scuff, dent, chip, crack, tear, hole, burn, rust, corrosion, fading, discolouration,
+pilling or fraying; or any phrase amounting to a condition claim ("like new", "showroom",
+"pristine"). Those are not preparation, they are a different object.
+
+Every shot's own "prompt" text must restate the preparation and the surviving faults that apply to
+that shot, in its own words, since the model generating it sees nothing else.
+
 AUTHORITATIVE IMAGE-COUNT RANGE. This application sells any whole number of images from
 ${MIN_IMAGES} to ${MAX_IMAGES} inclusive. Where the document above states a different range or
 names fixed packages, THIS overrides it. The count you are given is always valid; never argue
 with it, round it, or treat it as one of a fixed set of tiers.
 
 Requirements specific to this call:
+
+- environmentDescription is THE ONE ROOM every marketing shot in this campaign happens in, and it
+  is now actually used -- it is built into the hero, and the rest of the set is matched to the
+  hero. Describe it concretely enough to build: wall colour with its undertone and finish, floor
+  material and the direction it runs, where the daylight comes from, and what little else is in
+  the room. Three or four sentences.
+
+  IT IS A ROOM YOU ARE CHOOSING, NOT A DESCRIPTION OF WHERE THE SELLER WAS STANDING. Default hard
+  to replacing their setting. Listing photographs are overwhelmingly taken in a garage, a
+  driveway, a storage unit, a cluttered corner or a room mid-move, and none of those belong in a
+  delivered set -- the seller's background is evidence about the ITEM and nothing else. Keep their
+  setting only when it is already a clean, well-kept interior that suits the item, and say so
+  explicitly when you do.
+
+  Choose a room this kind of item actually lives in, because a buyer is judging fit as much as
+  looks: a sofa in a living room, a dining set in a dining room, a washer in a laundry or utility
+  room, a tool in a swept garage or workshop, a treadmill in a spare room. Keep it plain and
+  ordinary -- an uncluttered home somebody really lives in, not a showroom or a magazine interior.
 
 - "shots" must contain EXACTLY the requested_final_image_count number of entries, numbered
   sequenceNumber 1..N with no gaps or repeats.
@@ -340,6 +418,17 @@ const analysisSchema = {
     },
     campaignThesis: { type: 'string' },
     environmentDescription: { type: 'string' },
+    // The ten minutes before the shutter, decided per item. `leave` is required alongside `groom`
+    // so the plan cannot describe tidying without naming what the tidying must not reach.
+    presentation: {
+      type: 'object',
+      additionalProperties: false,
+      properties: {
+        groom: { type: 'array', items: { type: 'string' } },
+        leave: { type: 'array', items: { type: 'string' } },
+      },
+      required: ['groom', 'leave'],
+    },
     shots: {
       type: 'array',
       items: {
@@ -404,6 +493,7 @@ const analysisSchema = {
     'truthLock',
     'campaignThesis',
     'environmentDescription',
+    'presentation',
     'shots',
     'listingTitle',
     'listingDescription',
@@ -491,6 +581,38 @@ export async function analyzeCampaign(
         // Repairable: the shot is fine, the mode is wrong. hero_reference keeps the campaign room.
         shot.productionMode = 'hero_reference';
         shot.sourcePhotoIndex = null;
+      }
+    }
+
+    // The presentation plan is the one place in the output where the system is deliberately
+    // ALLOWED to change how the item looks, so it is the one place worth checking twice.
+    if (!parsed.presentation) parsed.presentation = { groom: [], leave: [] };
+    parsed.presentation.groom ??= [];
+    parsed.presentation.leave ??= [];
+
+    const { plan: cleanedPresentation, dropped } = sanitizePresentation(parsed.presentation);
+    if (dropped.length) {
+      problems.push(
+        `${dropped.length} preparation step(s) would have repaired or restored the item rather ` +
+          `than tidied it, and were dropped: ${dropped.join(' | ')}`,
+      );
+    }
+    parsed.presentation = cleanedPresentation;
+
+    // A full grooming list beside an empty "leave" list is the exact shape of a set that tidies
+    // the faults away, so the faults are backfilled from what the analysis already established
+    // rather than trusting an empty list to mean the item is genuinely flawless.
+    if (!parsed.presentation.leave.length) {
+      const known = [
+        ...(parsed.conditionSummary ?? []),
+        ...(parsed.truthLock?.neverRemove ?? []),
+      ].filter((s) => s && s.trim());
+      if (known.length) {
+        problems.push(
+          'the presentation plan listed no faults to preserve despite the analysis recording ' +
+            `${known.length}, so they were carried over verbatim`,
+        );
+        parsed.presentation.leave = Array.from(new Set(known));
       }
     }
 

@@ -9,7 +9,13 @@ import {
 import { getJob, persistImageResult, setProgress, setStatus, updateJob } from './store';
 import { applyPreviewWatermark, bufferToDataUrl, dataUrlToBuffer } from './watermark';
 import { storeCampaignImage } from './storage';
-import { readSceneFromHero, sceneClause, type SceneLock } from './sceneLock';
+import {
+  plannedSettingClause,
+  readSceneFromHero,
+  sceneClause,
+  type SceneLock,
+} from './sceneLock';
+import { presentationClause, type PresentationPlan } from './presentation';
 import { sendEmail } from '@/lib/email/send';
 import { setFailedEmail, setReadyEmail } from '@/lib/email/templates';
 import { siteUrl } from '@/lib/stripe';
@@ -31,13 +37,41 @@ import {
 // Splitting it this way means exactly one image is generated for a visitor who never pays,
 // which is what keeps the economics viable at $1/image.
 
+/**
+ * Everything prepended to a shot's own prompt before it reaches the image model.
+ *
+ * All of it lives in the SHOT half rather than the photographic contract, because the contract is
+ * explicitly subordinate to the shot text -- a general standard sitting above a per-shot prompt
+ * loses every argument with it. Anything that must actually happen has to be down here.
+ */
+type Staging = {
+  /** The room read out of the finished hero. Used by every shot after the hero. */
+  scene?: SceneLock | null;
+  /** The room the planner chose. Used by the hero, which has no earlier shot to match. */
+  plannedSetting?: string;
+  /** The ten minutes before the shutter, decided for this item. */
+  presentation?: PresentationPlan | null;
+};
+
+function stage(shot: ShotPlan, staging: Staging): ShotPlan {
+  const parts: string[] = [];
+  if (staging.scene) parts.push(sceneClause(staging.scene));
+  else if (staging.plannedSetting) parts.push(plannedSettingClause(staging.plannedSetting));
+  if (staging.presentation) {
+    const clause = presentationClause(staging.presentation, shot.classification);
+    if (clause) parts.push(clause);
+  }
+  if (!parts.length) return shot;
+  return { ...shot, prompt: `${parts.join('\n\n')}\n\n${shot.prompt}` };
+}
+
 async function generateOneShot(
   client: OpenAI,
   shot: ShotPlan,
   sources: SourcePhoto[],
   heroReference: SourcePhoto | null,
   heroOrientation: ShotOrientation | null,
-  scene: SceneLock | null = null,
+  staging: Staging = {},
 ): Promise<GeneratedShotResult> {
   const needsHero = shot.productionMode === 'hero_edit' || shot.productionMode === 'hero_reference';
   if (needsHero && (!heroReference || !heroOrientation)) {
@@ -63,13 +97,11 @@ async function generateOneShot(
     };
   }
 
-  // The locked scene is prepended to the shot text so it carries the shot's precedence. Passing
-  // the hero as a reference image was supposed to hold the room together and does not -- an edit
-  // model handed several references averages them rather than matching one, which is how a dining
-  // table ended up present in one frame of a set and absent from the next.
-  const staged: ShotPlan = scene
-    ? { ...shot, prompt: `${sceneClause(scene)}\n\n${shot.prompt}` }
-    : shot;
+  // The room and the preparation are prepended to the shot text so they carry the shot's
+  // precedence. Passing the hero as a reference image was supposed to hold the room together and
+  // does not -- an edit model handed several references averages them rather than matching one,
+  // which is how a dining table ended up present in one frame of a set and absent from the next.
+  const staged = stage(shot, staging);
 
   try {
     let image: string;
@@ -204,7 +236,14 @@ export async function runPreview(jobId: string): Promise<void> {
 
     setStatus(jobId, 'generating_preview');
     const heroShot = analysis.shots[0];
-    const heroResult = await generateOneShot(client, heroShot, job.sources, null, null);
+    // The hero decides the whole set. It is the image the scene lock is later read out of, so a
+    // hero that inherited the seller's garage propagates that garage into every shot behind it,
+    // and a hero photographed with the cushions shoved sideways propagates that too. Both get
+    // fixed here or not at all.
+    const heroResult = await generateOneShot(client, heroShot, job.sources, null, null, {
+      plannedSetting: analysis.environmentDescription,
+      presentation: analysis.presentation,
+    });
 
     if (heroResult.status !== 'done' || !heroResult.image) {
       setStatus(jobId, 'failed');
@@ -330,7 +369,14 @@ export async function runFullCampaign(jobId: string): Promise<void> {
           job.sources,
           heroReference,
           heroOrientation,
-          scene,
+          // plannedSetting is the fallback for a failed scene reader: without it, a set whose
+          // continuity notes could not be written would go back to inheriting the seller's garage
+          // one shot at a time.
+          {
+            scene,
+            plannedSetting: analysis.environmentDescription,
+            presentation: analysis.presentation,
+          },
         );
         const elapsed = (Date.now() - startedAt) / 1000;
         if (elapsed >= MIN_SAMPLE_SECONDS) {

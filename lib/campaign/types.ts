@@ -29,6 +29,7 @@ export function etaSeconds(
 export type RequestedImageCount = number;
 
 import type { SubjectScope } from './categories';
+import type { PresentationPlan } from './presentation';
 
 export type ShotClassification = 'marketing' | 'evidence';
 
@@ -117,6 +118,12 @@ export interface AnalysisResult {
   truthLock: TruthLock;
   campaignThesis: string;
   environmentDescription: string;
+  /**
+   * What ten minutes of the seller's own preparation looks like for this specific item, and which
+   * real faults have to survive it. Injected into every shot's prompt -- see
+   * lib/campaign/presentation.ts.
+   */
+  presentation: PresentationPlan;
   shots: ShotPlan[];
   listingTitle: string;
   listingDescription: string;

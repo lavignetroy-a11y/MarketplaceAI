@@ -53,6 +53,7 @@ import {
   editSourceImage,
   generateShotImage,
 } from '../lib/campaign/generateImages';
+import { presentationClause } from '../lib/campaign/presentation';
 import { findBeautifyRisks, refineCorrection, type RoundResult } from '../lib/campaign/refine';
 import { strategyById } from '../lib/campaign/strategies';
 import type { AnalysisResult, ShotPlan, SourcePhoto } from '../lib/campaign/types';
@@ -238,7 +239,15 @@ async function main() {
       console.log('    (pass --force to include it anyway)\n');
       continue;
     }
-    const shots = analysis.shots.slice(0, shotsPerItem);
+    // Baked in at plan time rather than staged per shot, because this loop has no scene lock to
+    // stage alongside. Without it the refiner would be critiquing images made from a brief the
+    // production pipeline no longer sends, and correcting a prompt nobody runs.
+    const shots = analysis.shots.slice(0, shotsPerItem).map((shot) => {
+      const clause = analysis.presentation
+        ? presentationClause(analysis.presentation, shot.classification)
+        : '';
+      return clause ? { ...shot, prompt: `${clause}\n\n${shot.prompt}` } : shot;
+    });
     if (!shots.length) {
       console.log('no shots planned, skipping');
       continue;

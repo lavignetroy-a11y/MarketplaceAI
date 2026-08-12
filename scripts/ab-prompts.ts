@@ -46,7 +46,13 @@ import {
   editSourceImage,
   generateShotImage,
 } from '../lib/campaign/generateImages';
-import { readSceneFromHero, sceneClause, type SceneLock } from '../lib/campaign/sceneLock';
+import {
+  plannedSettingClause,
+  readSceneFromHero,
+  sceneClause,
+  type SceneLock,
+} from '../lib/campaign/sceneLock';
+import { presentationClause } from '../lib/campaign/presentation';
 import { STRATEGIES, strategyById, type PromptStrategy } from '../lib/campaign/strategies';
 import { MAX_IMAGES } from '../lib/config/pricing';
 import type { AnalysisResult, ImageQuality, ShotPlan, SourcePhoto } from '../lib/campaign/types';
@@ -188,12 +194,24 @@ async function generate(
   strategy: PromptStrategy,
   quality: ImageQuality,
   scene: SceneLock | null,
+  analysis: AnalysisResult,
 ): Promise<string> {
   // The scene lock is prepended to the SHOT text rather than folded into the style contract, so it
   // inherits the shot's precedence. A contract that suggests "an ordinary well-kept home" and a
-  // lock that names one specific room cannot both be advisory -- the lock has to win.
-  const staged: ShotPlan = scene
-    ? { ...shot, prompt: `${sceneClause(scene)}\n\n${shot.prompt}` }
+  // lock that names one specific room cannot both be advisory -- the lock has to win. Same for the
+  // preparation: this staging has to match lib/campaign/pipeline.ts exactly, or the harness stops
+  // measuring the thing that actually ships.
+  const parts: string[] = [];
+  if (scene) parts.push(sceneClause(scene));
+  else if (analysis.environmentDescription) {
+    parts.push(plannedSettingClause(analysis.environmentDescription));
+  }
+  if (analysis.presentation) {
+    const clause = presentationClause(analysis.presentation, shot.classification);
+    if (clause) parts.push(clause);
+  }
+  const staged: ShotPlan = parts.length
+    ? { ...shot, prompt: `${parts.join('\n\n')}\n\n${shot.prompt}` }
     : shot;
 
   if (staged.productionMode === 'source_edit' && staged.sourcePhotoIndex !== null) {
@@ -473,6 +491,22 @@ async function main() {
     console.log('\n  Coverage notes (told to the seller):');
     analysis.coverageNotes.forEach((n) => console.log(`    - ${n}`));
   }
+
+  // Printed because this is the one part of the plan that deliberately changes how the item looks,
+  // so it is the part worth reading before spending money -- and the two halves are only safe read
+  // together. A long groom list beside a short leave list is the shape of a set that tidies the
+  // faults away, and that is visible here in a way it is not in the finished images.
+  if (analysis.environmentDescription) {
+    console.log(`\n  Room chosen for the shoot:\n    ${analysis.environmentDescription}`);
+  }
+  if (analysis.presentation) {
+    console.log('\n  Prepared before the shutter:');
+    (analysis.presentation.groom ?? []).forEach((g) => console.log(`    + ${g}`));
+    console.log('\n  Faults that survive it:');
+    const leave = analysis.presentation.leave ?? [];
+    if (leave.length) leave.forEach((l) => console.log(`    ! ${l}`));
+    else console.log('    (none recorded -- check this is really a flawless item)');
+  }
   if (only) console.log(`\n  (* = compared; the rest are planned but not generated)`);
 
   // Every arm generates this same subset.
@@ -539,6 +573,7 @@ async function main() {
             arm,
             quality,
             scene,
+            analysis,
           );
           const file = path.join(armDir, `${label}.png`);
           const png = dataUrlToSourcePhoto(image, `${label}.png`).data;
