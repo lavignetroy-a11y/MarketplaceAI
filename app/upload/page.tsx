@@ -39,6 +39,35 @@ type ShotResult = {
   error?: string;
 };
 
+/**
+ * Reads a JSON response, or explains why it could not.
+ *
+ * `res.json()` on a body that is empty or not JSON throws "Unexpected end of JSON input" -- a
+ * message that names the parser and hides everything useful. The status code, which is the actual
+ * diagnosis, is discarded. A 502 from a proxy, a 413 on a large upload, and a crashed handler all
+ * look identical to the user.
+ *
+ * This reads the body as text first, so a failure can report what actually came back.
+ */
+async function readJson(res: Response, what: string): Promise<Record<string, unknown>> {
+  const body = await res.text();
+  if (!body.trim()) {
+    throw new Error(
+      `${what} returned ${res.status} ${res.statusText} with an empty response. ` +
+        (res.status >= 500
+          ? 'The server errored -- check the deployment logs.'
+          : 'Check the deployment logs for this request.'),
+    );
+  }
+  try {
+    return JSON.parse(body) as Record<string, unknown>;
+  } catch {
+    // An HTML error page from a proxy or platform is the usual culprit here.
+    const snippet = body.replace(/\s+/g, ' ').slice(0, 160);
+    throw new Error(`${what} returned ${res.status} but not JSON: ${snippet}`);
+  }
+}
+
 type CampaignState = {
   id: string;
   status: string;
@@ -107,10 +136,10 @@ function UploadFlow() {
     (async () => {
       try {
         const res = await fetch(`/api/campaigns/${campaignParam}`);
-        const data = await res.json();
+        const data = await readJson(res, 'Loading that set');
         if (cancelled) return;
-        if (!res.ok) throw new Error(data.error || 'That set could not be found.');
-        setCampaign(data as CampaignState);
+        if (!res.ok) throw new Error(String(data.error || 'That set could not be found.'));
+        setCampaign(data as unknown as CampaignState);
       } catch (err) {
         if (!cancelled) setError(err instanceof Error ? err.message : 'That set could not be found.');
       } finally {
@@ -127,9 +156,9 @@ function UploadFlow() {
     const timer = setInterval(async () => {
       try {
         const res = await fetch(`/api/campaigns/${campaign.id}`);
-        const data = await res.json();
-        if (!res.ok) throw new Error(data.error || 'Failed to check status.');
-        setCampaign(data as CampaignState);
+        const data = await readJson(res, 'Checking status');
+        if (!res.ok) throw new Error(String(data.error || 'Failed to check status.'));
+        setCampaign(data as unknown as CampaignState);
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Failed to check status.');
       }
@@ -177,15 +206,15 @@ function UploadFlow() {
       if (user?.id) form.append('userId', user.id);
 
       const res = await fetch('/api/campaigns', { method: 'POST', body: form });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Something went wrong.');
+      const data = await readJson(res, 'Creating the campaign');
+      if (!res.ok) throw new Error(String(data.error || 'Something went wrong.'));
 
       setCampaign({
-        id: data.jobId,
+        id: String(data.jobId),
         status: 'queued',
         statusLabel: 'Preparing your set',
         paid: false,
-        priceCents: data.priceCents,
+        priceCents: Number(data.priceCents),
         requestedCount: count,
         productSummary: null,
         minimumAdditionalEvidenceNeeded: [],
@@ -211,8 +240,8 @@ function UploadFlow() {
       // follows the URL it gets back.
       const res = await fetch(`/api/campaigns/${campaign.id}/checkout`, { method: 'POST' });
       if (res.ok) {
-        const { url } = await res.json();
-        window.location.href = url;
+        const { url } = await readJson(res, 'Checkout');
+        window.location.href = String(url);
         return;
       }
       // 503 means this machine has no Stripe keys, so fall back to the development bypass. That
@@ -220,25 +249,27 @@ function UploadFlow() {
       if (res.status === 503) {
         // Say so on screen. A bypass that looks identical to a successful purchase is how you end
         // up believing payment works when it has never once run.
-        const { missing } = (await res.json()) as { missing?: string[] };
+        const { missing } = (await readJson(res, 'Checkout')) as { missing?: string[] };
         setBypassed(
           missing?.length
             ? `Payment was skipped: this server is missing ${missing.join(' and ')}.`
             : 'Payment was skipped: Stripe is not configured on this server.',
         );
         const dev = await fetch(`/api/campaigns/${campaign.id}/pay`, { method: 'POST' });
-        if (!dev.ok) throw new Error((await dev.json()).error || 'Checkout failed.');
+        if (!dev.ok) {
+          throw new Error(String((await readJson(dev, 'Payment')).error || 'Checkout failed.'));
+        }
         // The bypass only reports that it worked -- it does not hand back the campaign. Nothing
         // else will fetch it either: the poll is stopped because the preview is a terminal status.
         // So re-read it here. That flips the page to paid, and once the full run puts the status
         // back to a working one the poll starts again on its own.
         const after = await fetch(`/api/campaigns/${campaign.id}`);
-        const state = await after.json();
-        if (!after.ok) throw new Error(state.error || 'Checkout failed.');
+        const state = await readJson(after, 'Reloading the campaign');
+        if (!after.ok) throw new Error(String(state.error || 'Checkout failed.'));
         setCampaign(state as CampaignState);
         return;
       }
-      throw new Error((await res.json()).error || 'Checkout failed.');
+      throw new Error(String((await readJson(res, 'Checkout')).error || 'Checkout failed.'));
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Checkout failed.');
     } finally {
