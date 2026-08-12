@@ -243,6 +243,11 @@ model of a vehicle; a named appliance or tool model -- general knowledge of what
 looks like may be used to complete views the photographs do not cover, so the buyer gets a full
 set instead of a partial one. Use it.
 Conditions, all of which must hold:
+  - The SELLER'S OWN STATEMENT of year, make and model establishes identity. A seller writing
+    "2011 Porsche Panamera" has told you what the car is; you do not need to recognise it from the
+    photographs, only to check that nothing visible contradicts it. Record it in productIdentity's
+    brand and model fields -- leaving those null because no badge was legible in a photograph
+    throws away the one fact that makes completion possible, and it is the seller's own listing.
   - Identity must be ESTABLISHED, not guessed. If the photographs and notes do not pin the model,
     and variants of that model differ in the area being completed, do not complete it. A 2011
     Panamera came in trims with different rear bumpers and exhaust outlets; completing a rear view
@@ -262,6 +267,14 @@ Conditions, all of which must hold:
 
 Set "inferenceLevel" on every shot: "photographed" when a source covers the view, "interpolated"
 for Tier 2, "model_completed" for Tier 3.
+coverageNotes are ONLY about images: which desirable shot could not be supported and what was
+produced instead, or which view is a representation rather than a photograph. They are not a place
+for observations about the analysis itself. "No distinct brand or model was identifiable" is not a
+coverage note -- a seller does not need telling that their unbranded chairs are unbranded, and it
+reads as the system apologising for nothing. Neither are remarks about staging, consistency, or how
+carefully the condition was captured. If a note does not tell the seller something about a
+SPECIFIC IMAGE they are receiving, do not write it.
+
 Every shot at "model_completed" must also produce a plain-language entry in coverageNotes naming
 what was completed and why, e.g. "No photo of the passenger side was provided, so that view is
 based on the known shape of this model rather than a photograph of this specific car." The seller
@@ -551,6 +564,22 @@ export async function analyzeCampaign(
       }
     }
 
+    // Notes that comment on the analysis instead of on an image reached the seller: "no distinct
+    // brand or model was identifiable", "the environment used is staged for consistency". They read
+    // as the system apologising for nothing and bury the one note that matters.
+    const NON_NOTES =
+      /(no (distinct )?(brand|model|manufacturer)[^.]*identifi|staged for consistency|accurately (captured|represented)|maintaining alignment|ensure texture|given the source limitations)/i;
+    if (Array.isArray(parsed.coverageNotes)) {
+      const kept = parsed.coverageNotes.filter((n) => !NON_NOTES.test(n));
+      if (kept.length !== parsed.coverageNotes.length) {
+        problems.push(
+          `${parsed.coverageNotes.length - kept.length} coverage note(s) were about the analysis ` +
+            'rather than about an image the seller receives',
+        );
+        parsed.coverageNotes = kept;
+      }
+    }
+
     // Duplicate roles ship as duplicate filenames and identical column headings, and they are a
     // symptom too: two shots with one name are usually two shots doing one job.
     const seenRoles = new Map<string, number>();
@@ -565,12 +594,18 @@ export async function analyzeCampaign(
       if (shot.cameraPose) shot.cameraPose = shot.cameraPose.replace(/\b0\s*(o'?clock)/gi, "12 $1");
     }
 
-    // A completed view of a condition-disclosure shot defeats the shot's entire purpose: it shows
-    // what the factory shipped rather than what is actually there. Downgrade rather than ship it.
+    // Some views disclose condition whatever they are classified as. An engine bay completed from
+    // model knowledge is a factory-clean engine bay -- on a car with 125,000 miles that is not a
+    // representation, it is a different engine. The classification check alone missed these,
+    // because the planner files them as marketing detail.
+    const CONDITION_ROLES =
+      /(engine|underside|undercarriage|wear|damage|condition|seal|hinge|carpet|rust|scratch|dent|stain|interior_floor|tyre|tire|tread|brake)/i;
     for (const shot of parsed.shots) {
-      if (shot.classification === 'evidence' && shot.inferenceLevel === 'model_completed') {
+      const disclosesCondition =
+        shot.classification === 'evidence' || CONDITION_ROLES.test(shot.imageRole);
+      if (disclosesCondition && shot.inferenceLevel === 'model_completed') {
         problems.push(
-          `shot ${shot.sequenceNumber} (${shot.imageRole}) is evidence but was planned as ` +
+          `shot ${shot.sequenceNumber} (${shot.imageRole}) discloses condition but was planned as ` +
             'model-completed, which would show the factory condition rather than the real one',
         );
         shot.inferenceLevel = 'interpolated';
