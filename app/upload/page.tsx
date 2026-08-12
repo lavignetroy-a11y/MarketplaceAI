@@ -814,21 +814,42 @@ function PreviewGate({
 
 function ResultsGrid({ campaign }: { campaign: CampaignState }) {
   const done = campaign.results.filter((r) => r.status === 'done' && r.image);
+  const settled = campaign.results.length;
+  const pending = Math.max(0, campaign.requestedCount - settled);
+
+  // This grid used to map over results alone, and results only holds what the server has FINISHED.
+  // For the first minutes after payment that is the hero and nothing else, so someone who had just
+  // bought six images saw one, with no indication the rest were coming or that anything was still
+  // happening. Every image paid for now gets a tile immediately; the unfinished ones say so.
+  const slots: (ShotResult | null)[] = [
+    ...campaign.results,
+    ...Array.from({ length: pending }, () => null),
+  ];
+  const eta = campaign.progress?.etaSeconds ?? null;
+
   return (
     <div className="mt-8">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <h2 className="text-[1.5rem] font-[650] tracking-[-0.03em] text-marketplace-ink">
-          Your finished set
+          {pending > 0 ? 'Building your set' : 'Your finished set'}
         </h2>
         <p className="text-[0.875rem] text-marketplace-muted">
           {done.length} of {campaign.requestedCount} images ready
+          {pending > 0 && eta !== null && eta > 0 ? ` \u00b7 ${formatEta(eta)} left` : ''}
         </p>
       </div>
 
+      {pending > 0 && (
+        <p className="mt-2 text-[0.875rem] leading-[1.55] text-marketplace-muted">
+          Each image is generated on its own, so they arrive one at a time. You can leave this page
+          &mdash; we have emailed you a link, and everything will be waiting when you come back.
+        </p>
+      )}
+
       <div className="mt-6 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
-        {campaign.results.map((r) => (
-          <div key={r.sequenceNumber}>
-            {r.status === 'done' && r.image ? (
+        {slots.map((r, i) => (
+          <div key={r?.sequenceNumber ?? `pending-${i}`}>
+            {r && r.status === 'done' && r.image ? (
               <>
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
@@ -850,10 +871,22 @@ function ResultsGrid({ campaign }: { campaign: CampaignState }) {
                   </a>
                 </div>
               </>
+            ) : r ? (
+              <div className="flex aspect-[4/5] items-center justify-center rounded-brand border border-dashed border-marketplace-error/40 bg-marketplace-error/[0.04] p-5 text-center">
+                <p className="text-[0.8125rem] text-marketplace-error">
+                  {r.error ?? 'This image could not be generated.'}
+                </p>
+              </div>
             ) : (
-              <div className="flex aspect-[4/5] items-center justify-center rounded-brand border border-dashed border-marketplace-line bg-white/50 p-5 text-center">
+              // Staggered so the tiles pulse in sequence rather than in one block, which reads as
+              // work happening rather than as a page that has stalled.
+              <div
+                className="flex aspect-[4/5] animate-pulse flex-col items-center justify-center gap-3 rounded-brand border border-marketplace-line/60 bg-marketplace-line/20 p-5 text-center"
+                style={{ animationDelay: `${(i % 6) * 180}ms` }}
+              >
+                <Loader2 className="h-5 w-5 animate-spin text-marketplace-violet/70" />
                 <p className="text-[0.8125rem] text-marketplace-muted">
-                  {r.error ?? 'Still working…'}
+                  Image {i + 1} of {campaign.requestedCount}
                 </p>
               </div>
             )}
