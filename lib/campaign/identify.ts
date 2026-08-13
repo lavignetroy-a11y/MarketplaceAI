@@ -48,6 +48,16 @@ export type Identification = {
   /** How it was worked out, in a few words. Shown to the seller when it drives a claim. */
   basis: string;
   /**
+   * Where readable lettering actually lives, as a fraction of each photo's area.
+   *
+   * Used to answer a question that decides production mode and cannot be answered any other way:
+   * does a source photograph show this text CLOSE ENOUGH TO EDIT? A control panel occupying 2% of
+   * a wide driveway shot technically "appears in" that photo, and editing it produces the wide
+   * driveway shot again -- so anchoring a panel close-up to it is worse than useless. A panel
+   * filling a third of the frame is a real close view and beats any amount of recall.
+   */
+  textRegions: { photoIndex: number; areaFraction: number; what: string }[];
+  /**
    * What this exact product looks like, written from knowledge rather than from the photographs.
    *
    * This is what makes recall possible. A shot of a control panel nobody photographed can still be
@@ -68,6 +78,7 @@ export const UNKNOWN_IDENTIFICATION: Identification = {
   productionYears: null,
   confidence: 'unknown',
   basis: 'identification did not run',
+  textRegions: [],
   knownDesign: '',
 };
 
@@ -407,6 +418,37 @@ async function identifyWithoutSearch(
 /** How many label crops are worth sending. Beyond this they are mostly duplicates. */
 const MAX_CROPS = 6;
 
+/**
+ * Which regions to actually crop, best first.
+ *
+ * A run found twelve regions and cropped "the first six" -- in whatever order they happened to be
+ * returned. On an appliance most regions are warning stickers and cycle names; the ONE that
+ * settles the model is the data plate, and taking an arbitrary six can miss it entirely. That is
+ * not a small loss: three runs of this pass produced three different washer model numbers, which
+ * is what an identification made from styling rather than from a plate looks like.
+ *
+ * So rank by what the region claims to be, then by size, since a bigger crop enlarges better.
+ */
+const PLATE_WORDS = /(model|serial|data|rating|plate|nameplate|spec|number|sticker|tag|badge|logo)/i;
+
+function rankRegions(regions: Region[]): Region[] {
+  return regions
+    .slice()
+    .sort((a, b) => {
+      const plate = Number(PLATE_WORDS.test(b.what)) - Number(PLATE_WORDS.test(a.what));
+      if (plate !== 0) return plate;
+      return b.width * b.height - a.width * a.height;
+    });
+}
+
+function summarise(regions: Region[]): Identification['textRegions'] {
+  return regions.map((r) => ({
+    photoIndex: r.photoIndex,
+    areaFraction: Math.max(0, Math.min(1, r.width * r.height)),
+    what: r.what,
+  }));
+}
+
 export async function identifyItem(
   client: OpenAI,
   model: string,
@@ -418,11 +460,17 @@ export async function identifyItem(
 
   // Step 1: where is the lettering?
   let crops: { what: string; url: string }[] = [];
+  let found: Region[] = [];
   try {
     const regions = await locateLabels(client, model, sources);
-    log(`found ${regions.length} label region(s)`);
+    found = regions;
+    const ranked = rankRegions(regions);
+    log(
+      `found ${regions.length} label region(s); reading ${Math.min(ranked.length, MAX_CROPS)}, ` +
+        `plates first: ${ranked.slice(0, MAX_CROPS).map((r) => r.what).join(', ')}`,
+    );
     const cropped = await Promise.all(
-      regions.slice(0, MAX_CROPS).map(async (r) => {
+      ranked.slice(0, MAX_CROPS).map(async (r) => {
         const url = await cropRegion(sources[r.photoIndex], r);
         return url ? { what: `${r.what} (photo ${r.photoIndex})`, url } : null;
       }),
@@ -438,14 +486,17 @@ export async function identifyItem(
   try {
     const withSearch = await identifyWithSearch(client, model, overview, crops, sellerNotes);
     if (withSearch) {
-      log(`identified with web search: ${productName(withSearch) ?? 'nothing conclusive'}`);
-      return withSearch;
+      log(
+        `identified with web search: ${productName(withSearch) ?? 'nothing conclusive'} ` +
+          `[${withSearch.confidence}]`,
+      );
+      return { ...withSearch, textRegions: summarise(found) };
     }
   } catch (err) {
     log(`web search unavailable, identifying without it (${err instanceof Error ? err.message : 'unknown'})`);
   }
 
   const plain = await identifyWithoutSearch(client, model, overview, crops, sellerNotes);
-  log(`identified: ${productName(plain) ?? 'nothing conclusive'}`);
-  return plain;
+  log(`identified: ${productName(plain) ?? 'nothing conclusive'} [${plain.confidence}]`);
+  return { ...plain, textRegions: summarise(found) };
 }

@@ -6,7 +6,13 @@ import { MAX_IMAGES, MIN_IMAGES } from '@/lib/config/pricing';
 import { coverageBrief, profileFor, type CategoryProfile } from './categories';
 import { sanitizePresentation } from './presentation';
 import { productLockWeaknesses, readProductFromSources } from './productLock';
-import { identifyItem, isUsable, productName, type Identification } from './identify';
+import {
+  identifyItem,
+  isUsable,
+  productName,
+  UNKNOWN_IDENTIFICATION,
+  type Identification,
+} from './identify';
 import type { AnalysisResult, RequestedImageCount, SourcePhoto } from './types';
 
 /**
@@ -652,15 +658,11 @@ export async function analyzeCampaign(
     // back to reconstruction, which is where this system was a week ago -- worse, not broken.
     console.warn('[analyze] identification failed, routing from seller notes instead:', err);
     return {
+      ...UNKNOWN_IDENTIFICATION,
       itemType: sellerNotes,
       category: sellerNotes,
       isMatchingSet: /\b(set|pair|both|matching)\b/i.test(sellerNotes),
-      brand: null,
-      model: null,
-      productionYears: null,
-      confidence: 'unknown' as const,
       basis: 'identification failed',
-      knownDesign: '',
     };
   });
   const profile = profileFor(identified.itemType, identified.category, identified.isMatchingSet);
@@ -829,15 +831,25 @@ export async function analyzeCampaign(
       if (!TEXT_ROLES.test(shot.imageRole)) continue;
       if (shot.productionMode === 'source_edit' || shot.productionMode === 'known_product') continue;
 
-      const candidate = shot.referenceSourceIndices?.find((i) => sources[i] !== undefined);
-      if (candidate !== undefined) {
-        // Best: the seller photographed it. Nothing beats correcting the real thing.
+      // "A photo contains this text" is not the same question as "a photo shows this text close
+      // enough to edit". A control panel occupying 2% of a wide driveway shot satisfies the first
+      // and fails the second -- and source_edit preserves composition, so anchoring a panel
+      // close-up to that photo returns the driveway shot. A run did exactly that. The area
+      // fractions from the label pass answer the question the plan alone cannot.
+      const CLOSE_ENOUGH = 0.06;
+      const closeShot = identified.textRegions
+        .filter((r) => r.areaFraction >= CLOSE_ENOUGH && sources[r.photoIndex] !== undefined)
+        .sort((a, b) => b.areaFraction - a.areaFraction)[0];
+
+      if (closeShot) {
+        // Best: the seller photographed this text close up. Nothing beats correcting the real thing.
         shot.productionMode = 'source_edit';
-        shot.sourcePhotoIndex = candidate;
+        shot.sourcePhotoIndex = closeShot.photoIndex;
         shot.inferenceLevel = 'photographed';
         problems.push(
           `shot ${shot.sequenceNumber} (${shot.imageRole}) shows lettering and was planned as ` +
-            `reconstruction, so it was anchored to source photo ${candidate} instead`,
+            `reconstruction, so it was anchored to source photo ${closeShot.photoIndex}, which ` +
+            'shows that text close up',
         );
       } else if (canRecall) {
         // Next best: no photograph, but the model is known, so draw the one we know.
@@ -846,8 +858,8 @@ export async function analyzeCampaign(
         shot.inferenceLevel = 'model_completed';
         problems.push(
           `shot ${shot.sequenceNumber} (${shot.imageRole}) shows lettering that no photograph ` +
-            `covers, so it is drawn from knowledge of ${productName(identified)} rather than ` +
-            'reconstructed from unrelated wide shots',
+            `covers CLOSELY, so it is drawn from knowledge of ${productName(identified)} rather ` +
+            'than reconstructed from a wide shot it appears in only distantly',
         );
       } else {
         problems.push(
