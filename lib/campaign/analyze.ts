@@ -430,11 +430,28 @@ Requirements specific to this call:
        photographer walking around an item is exactly what this campaign is. Because reconstruction
        carries geometry risk, restate in the prompt the exact left/right layout of any asymmetric
        feature, drawn from the truth lock.
-    3. "source_edit" -- ONLY for evidence/documentary shots, where a specific original photo must
-       be preserved because reconstructing it would risk changing a fact (labels, serial plates,
-       specific damage, undersides, mechanisms). Set sourcePhotoIndex. Never use this mode for a
-       marketing shot: it keeps the original photo's room, and a set where three images are in a
-       staged room and one is in the seller's garage announces itself as fabricated instantly.
+    3. "source_edit" -- a specific original photo is the sole input and is corrected rather than
+       redrawn. THIS IS THE HIGHEST-FIDELITY MODE AVAILABLE AND IT IS UNDER-USED. Reconstruction
+       averages the reference photographs; editing cannot, because the object is already in the
+       frame. Every fidelity failure this system has produced came from reconstructing something a
+       photograph already showed. Set sourcePhotoIndex.
+
+       USE IT WHENEVER A SOURCE PHOTOGRAPH ALREADY COVERS THE VIEW, in either of these cases:
+         - any documentary or evidence shot: labels, rating plates, specific damage, undersides,
+           mechanisms, wear;
+         - ANY CLOSE-UP, whatever its classification. A shot where the item fills the frame -- the
+           inside of a drum or tub, a control panel, a fabric macro, a hallmark, a connector -- has
+           no room in it to leak, so the objection below does not apply to it at all.
+
+       ABOVE ALL, use it for anything carrying TEXT: control panels, badges, model plates, warning
+       labels, dial markings, displays. Reconstruction garbles lettering, and garbled lettering is
+       both the fastest way an image reads as fake and a false specification about goods for sale.
+       A text-bearing close-up is produced from a photograph or it is not planned at all.
+
+       THE ONE THING IT IS WRONG FOR: a WIDE marketing shot, where the seller's own room fills the
+       background. A set with three images in a staged room and one on a driveway announces itself
+       as fabricated instantly. That is about the background being visible -- not about the shot
+       being "marketing".
     4. "independent" -- the hero only.
 
 - imageRole must NAME THE SHOT, using the role name from the category coverage table you chose
@@ -912,10 +929,41 @@ export async function analyzeCampaign(
     const problems: string[] = [];
 
     for (const shot of parsed.shots.slice(1)) {
-      if (shot.productionMode === 'source_edit' && shot.classification === 'marketing') {
-        // Repairable: the shot is fine, the mode is wrong. hero_reference keeps the campaign room.
-        shot.productionMode = 'hero_reference';
-        shot.sourcePhotoIndex = null;
+      if (shot.productionMode !== 'source_edit' || shot.classification !== 'marketing') continue;
+      // A close-up has no room in it to leak. The rule below exists because a wide marketing shot
+      // in source_edit mode keeps the seller's garage, and a set with three staged images and one
+      // driveway announces itself instantly -- but the inside of a washer tub, a control panel
+      // filling the frame, a macro of a hallmark, all show the ITEM and nothing else. Converting
+      // those to reconstruction threw away the real photograph for no gain, and reconstruction is
+      // where every fidelity failure has come from.
+      if (shot.subjectScope === 'detail') continue;
+      shot.productionMode = 'hero_reference';
+      shot.sourcePhotoIndex = null;
+    }
+
+    // Text is the fastest way to make an image read as AI, and a control panel, a rating plate or
+    // a hallmark is mostly text. Reconstruction garbles it; editing the real photograph cannot.
+    // So a text-bearing close-up is produced from the photograph or it does not ship -- which is
+    // also the honest outcome, since invented lettering on goods for sale is a false specification.
+    const TEXT_ROLES = /(control_panel|model_label|badge|hallmark|serial|rating|sticker|display|markings|dial)/i;
+    for (const shot of parsed.shots.slice(1)) {
+      if (!TEXT_ROLES.test(shot.imageRole) || shot.productionMode === 'source_edit') continue;
+      // Find an upload the planner already thought relevant to this shot.
+      const candidate = shot.referenceSourceIndices?.find((i) => sources[i] !== undefined);
+      if (candidate !== undefined) {
+        shot.productionMode = 'source_edit';
+        shot.sourcePhotoIndex = candidate;
+        shot.inferenceLevel = 'photographed';
+        problems.push(
+          `shot ${shot.sequenceNumber} (${shot.imageRole}) shows lettering and was planned as ` +
+            `reconstruction, so it was anchored to source photo ${candidate} instead`,
+        );
+      } else {
+        problems.push(
+          `shot ${shot.sequenceNumber} (${shot.imageRole}) shows lettering but no source photo ` +
+            'covers it, so its text will be invented -- a close photograph of that panel or ' +
+            'label is the fix',
+        );
       }
     }
 
