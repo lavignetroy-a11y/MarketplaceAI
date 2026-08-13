@@ -56,16 +56,33 @@ type Staging = {
   presentation?: PresentationPlan | null;
 };
 
-function stage(shot: ShotPlan, staging: Staging): ShotPlan {
+export function stage(shot: ShotPlan, staging: Staging): ShotPlan {
+  // A shot whose input IS the photograph -- source_edit editing a real upload, hero_edit editing
+  // the approved hero -- already has its room, and its whole value is that the room came from a
+  // camera rather than from a description.
+  //
+  // Handing one of those a paragraph headed "THE SET -- BUILD THIS ROOM" destroys it. That is not
+  // a theory: a set of five source_edit shots -- a washer drum, a dryer drum, a control panel, a
+  // model label, a condition close-up, every one of them anchored to a real photograph -- all came
+  // back as fresh wide renders of an invented laundry room, because each was told to build one.
+  // The single most useful images in the set were overwritten by the instruction meant to make the
+  // OTHER images consistent.
+  const preserveSetting =
+    shot.productionMode === 'source_edit' || shot.productionMode === 'hero_edit';
+
   const parts: string[] = [];
   // Order is precedence. The object comes before the room, which comes before its preparation,
   // which comes before the framing -- a beautiful photograph of the wrong item is worth less than
   // a plain photograph of the right one, so that is the order they should win arguments in.
-  if (staging.product) parts.push(productClause(staging.product, shot.classification));
-  // The scene lock's own description of the item is suppressed when a product lock is present: it
-  // is read from the generated hero and would otherwise be a second, contradictory specification.
-  if (staging.scene) parts.push(sceneClause(staging.scene, !staging.product));
-  else if (staging.plannedSetting) parts.push(plannedSettingClause(staging.plannedSetting));
+  if (staging.product) parts.push(productClause(staging.product, shot.classification, preserveSetting));
+
+  if (!preserveSetting) {
+    // The scene lock's own description of the item is suppressed when a product lock is present:
+    // it is read from the generated hero and would otherwise be a second, contradictory spec.
+    if (staging.scene) parts.push(sceneClause(staging.scene, !staging.product));
+    else if (staging.plannedSetting) parts.push(plannedSettingClause(staging.plannedSetting));
+  }
+
   if (staging.presentation) {
     const clause = presentationClause(staging.presentation, shot.classification);
     if (clause) parts.push(clause);

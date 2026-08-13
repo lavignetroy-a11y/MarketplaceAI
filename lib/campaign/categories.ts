@@ -165,21 +165,32 @@ const APPLIANCE: CategoryProfile = {
   key: 'appliance',
   matches: ['appliance', 'washer', 'dryer', 'fridge', 'refrigerator', 'dishwasher', 'oven', 'stove', 'microwave', 'freezer', 'range'],
   shots: [
-    { role: 'hero_front_closed', answers: 'What is it and what does it look like installed?', scope: 'representative', priority: 1 },
-    { role: 'front_square', answers: 'What are its true dimensions?', scope: 'representative', priority: 2 },
-    { role: 'door_open_interior', answers: 'What is the inside like, and is it clean?', scope: 'detail', priority: 3 },
-    { role: 'control_panel', answers: 'What settings does it have and do they work?', scope: 'detail', priority: 4 },
-    { role: 'three_quarter', answers: 'How deep is it?', scope: 'representative', priority: 5 },
-    { role: 'model_label', answers: 'Exactly which model is this?', scope: 'detail', priority: 6 },
-    { role: 'condition_detail', answers: 'Where are the dents and scratches?', scope: 'detail', priority: 7 },
-    { role: 'seals_and_hinges', answers: 'Are the wearing parts intact?', scope: 'detail', priority: 8 },
-    { role: 'rear_connections', answers: 'How does it hook up?', scope: 'detail', priority: 9 },
-    { role: 'scale_context', answers: 'Will it fit my space?', scope: 'representative', priority: 10 },
+    { role: 'front_left_three_quarter', answers: 'What is it and what condition is it in?', scope: 'full_set', priority: 1 },
+    { role: 'front_right_three_quarter', answers: 'What does the other front corner look like?', scope: 'full_set', priority: 2 },
+    { role: 'front_square', answers: 'What are its true proportions, and how do the units sit together?', scope: 'full_set', priority: 3 },
+    { role: 'doors_open', answers: 'What does it look like open, and does everything open properly?', scope: 'full_set', priority: 4 },
+    { role: 'primary_interior', answers: 'What is the inside like, and is it clean?', scope: 'detail', priority: 5 },
+    { role: 'control_panel', answers: 'What settings does it have and how worn are the controls?', scope: 'detail', priority: 6 },
+    { role: 'secondary_interior', answers: 'What is the inside of the second unit like?', scope: 'detail', priority: 7 },
+    { role: 'condition_detail', answers: 'Where exactly are the dents, scratches and rust?', scope: 'detail', priority: 8 },
+    { role: 'model_label', answers: 'Exactly which model is this?', scope: 'detail', priority: 9 },
+    { role: 'rear_connections', answers: 'How does it hook up?', scope: 'detail', priority: 10 },
   ],
   guidance:
-    'The interior and the control panel decide the sale -- an appliance shown only from outside ' +
-    'looks like it is hiding a filthy drum. Open what opens. Only reproduce a model label if it ' +
-    'is legible in a source photo.',
+    'THE INTERIORS AND THE CONTROL PANEL DECIDE THE SALE. An appliance shown only from outside ' +
+    'reads as hiding a filthy drum, and the outside of a white box is nearly identical across ' +
+    'every machine ever made -- so a set of five exterior views answers almost nothing while ' +
+    'costing everything. Open what opens, and go close on what a buyer would put their head ' +
+    'inside to check. ' +
+    'The exteriors that ARE worth buying are the two front corners and the square-on front; ' +
+    'beyond those, further wide views are padding. Do not spend images on scale context, extra ' +
+    'three-quarters, or a second version of a shot already taken. ' +
+    'FOR A PAIR (washer and dryer, fridge and freezer, stacked units) every exterior shot shows ' +
+    'BOTH units in their real left-right order, and each unit gets its own interior close-up -- ' +
+    'primary_interior and secondary_interior are the two drums, not two views of one. ' +
+    'A model label is worth an image ONLY when a source photo shows one legibly; never generate ' +
+    'the lettering. Same for rear connections -- without a photo of the back, skip it and take ' +
+    'the next shot down rather than inventing a hookup panel.',
   grooming: [
     'Exterior wiped clean of dust, smears and fingerprints. Stainless steel wiped along the grain, not across it.',
     'Drum, tub or cavity wiped out and free of loose debris, lint and residue. Burnt-on marks, staining, rust spots and limescale stay.',

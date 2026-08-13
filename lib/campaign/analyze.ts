@@ -44,13 +44,13 @@ function sampleForAnalysis<T>(items: T[], max: number): T[] {
   return picked;
 }
 
-async function forAnalysis(source: SourcePhoto): Promise<string> {
+async function encodeForVision(source: SourcePhoto, maxEdge: number): Promise<string> {
   try {
     const resized = await sharp(source.data)
       // EXIF orientation is applied rather than carried, since the resize would otherwise drop the
       // tag and hand the planner a sideways sofa.
       .rotate()
-      .resize(ANALYSIS_MAX_EDGE, ANALYSIS_MAX_EDGE, { fit: 'inside', withoutEnlargement: true })
+      .resize(maxEdge, maxEdge, { fit: 'inside', withoutEnlargement: true })
       .jpeg({ quality: 82 })
       .toBuffer();
     return `data:image/jpeg;base64,${resized.toString('base64')}`;
@@ -98,9 +98,32 @@ const classificationSchema = {
     itemType: { type: 'string' },
     category: { type: 'string' },
     isMatchingSet: { type: 'boolean' },
+    brand: { type: ['string', 'null'] },
+    model: { type: ['string', 'null'] },
+    identificationBasis: { type: 'string' },
   },
-  required: ['itemType', 'category', 'isMatchingSet'],
+  required: ['itemType', 'category', 'isMatchingSet', 'brand', 'model', 'identificationBasis'],
 } as const;
+
+export type Identification = {
+  profile: CategoryProfile;
+  brand: string | null;
+  model: string | null;
+  basis: string;
+};
+
+/**
+ * Longest edge for the identification pass.
+ *
+ * Higher than the planner's 1024 on purpose. Recognising a manufacturer from a control panel
+ * layout, or reading a half-legible badge, is exactly the task that dies first when an image is
+ * downscaled -- and it is the one capability a person notices missing, because dropping the same
+ * photograph into a chat window and asking "what is this?" answers it immediately. Only a few
+ * photographs go through this pass, so the extra resolution is affordable here in a way it is not
+ * across a whole upload.
+ */
+const IDENTIFY_MAX_EDGE = 1536;
+const IDENTIFY_MAX_PHOTOS = 3;
 
 /**
  * Which coverage model this item needs, decided in its own cheap call.
@@ -114,30 +137,48 @@ const classificationSchema = {
 async function classifyItem(
   client: OpenAI,
   model: string,
-  images: string[],
+  sources: SourcePhoto[],
   sellerNotes: string,
-): Promise<CategoryProfile> {
+): Promise<Identification> {
   try {
-    const completion = await withRateLimitRetry('classification', () =>
+    // Its own encoding, at higher resolution than the planner's, and only a few photographs.
+    const detailed = await Promise.all(
+      sampleForAnalysis(sources, IDENTIFY_MAX_PHOTOS).map((s) =>
+        encodeForVision(s, IDENTIFY_MAX_EDGE),
+      ),
+    );
+
+    const completion = await withRateLimitRetry('identification', () =>
       client.chat.completions.create({
         model,
         messages: [
           {
             role: 'system',
             content:
-              'Name what is being sold, in as few words as a listing title would use. ' +
-              'itemType is the specific thing ("four-seat velvet sectional sofa", "front-load ' +
+              'Identify what is being sold.\n\n' +
+              'itemType is the specific thing ("six-piece corduroy sectional sofa", "top-load ' +
               'washing machine"); category is the broad family ("furniture", "appliance", ' +
               '"vehicle", "tool", "jewelry", "fitness", "electronics"); isMatchingSet is true ' +
-              'when several units of the same thing are being sold together.',
+              'when several units of the same thing are sold together.\n\n' +
+              'brand and model: WORK THEM OUT IF YOU CAN. Read any badge, logo, model plate or ' +
+              'sticker in the photographs, and recognise the manufacturer from the design where ' +
+              'you genuinely can -- control panel layout, dial style, door shape and trim ' +
+              'identify a mass-produced appliance or tool as reliably as a badge does. This is ' +
+              'worth real effort: knowing the exact product is what lets unseen views be ' +
+              'completed correctly instead of generically.\n' +
+              'But do not guess to be helpful. Return null when you are not actually confident, ' +
+              'and prefer a confident brand with a null model over an invented model number. ' +
+              'identificationBasis says how you know, in a few words -- "logo legible on the ' +
+              'control panel", "recognised from the dial layout and lid shape", or "not ' +
+              'identifiable" when both are null.',
           },
           {
             role: 'user',
             content: [
               { type: 'text' as const, text: `seller notes: ${sellerNotes.trim() || 'none'}` },
-              ...images.map((url) => ({
+              ...detailed.map((url) => ({
                 type: 'image_url' as const,
-                image_url: { url, detail: 'low' as const },
+                image_url: { url, detail: 'high' as const },
               })),
             ],
           },
@@ -150,14 +191,31 @@ async function classifyItem(
     );
     const raw = completion.choices[0]?.message?.content;
     if (!raw) throw new Error('no content');
-    const c = JSON.parse(raw) as { itemType: string; category: string; isMatchingSet: boolean };
-    return profileFor(c.itemType, c.category, c.isMatchingSet);
+    const c = JSON.parse(raw) as {
+      itemType: string;
+      category: string;
+      isMatchingSet: boolean;
+      brand: string | null;
+      model: string | null;
+      identificationBasis: string;
+    };
+    return {
+      profile: profileFor(c.itemType, c.category, c.isMatchingSet),
+      brand: c.brand,
+      model: c.model,
+      basis: c.identificationBasis,
+    };
   } catch (err) {
     // Falling back to the whole catalog would be the obvious move and the wrong one: the most
     // likely reason this failed is that the account is already at its token ceiling, and the
     // catalog is four times the size. Route off the seller's own words instead.
-    console.warn('[analyze] classification failed, routing from seller notes instead:', err);
-    return profileFor(sellerNotes, sellerNotes, /\b(set|pair|both|matching)\b/i.test(sellerNotes));
+    console.warn('[analyze] identification failed, routing from seller notes instead:', err);
+    return {
+      profile: profileFor(sellerNotes, sellerNotes, /\b(set|pair|both|matching)\b/i.test(sellerNotes)),
+      brand: null,
+      model: null,
+      basis: 'identification failed',
+    };
   }
 }
 
@@ -674,20 +732,30 @@ export async function analyzeCampaign(
     sources.map((source, index) => ({ source, index })),
     ANALYSIS_MAX_PHOTOS,
   );
-  const encoded = await Promise.all(shown.map(({ source }) => forAnalysis(source)));
+  const encoded = await Promise.all(
+    shown.map(({ source }) => encodeForVision(source, ANALYSIS_MAX_EDGE)),
+  );
 
   const imageParts = shown.flatMap(({ index }, n) => [
     { type: 'text' as const, text: `SOURCE INDEX ${index}:` },
     { type: 'image_url' as const, image_url: { url: encoded[n], detail: 'high' as const } },
   ]);
 
-  const profile = await classifyItem(client, model, encoded, sellerNotes);
+  const identified = await classifyItem(client, model, sources, sellerNotes);
 
   const userText = [
-    coverageBrief(profile, requestedCount),
+    coverageBrief(identified.profile, requestedCount),
     '',
     `requested_final_image_count: ${requestedCount}`,
     `seller_notes: ${sellerNotes.trim() || 'none provided'}`,
+    identified.brand
+      ? `visual_identification: ${identified.brand} ${identified.model ?? ''}`.trim() +
+        ` (${identified.basis}). The seller did not necessarily state this -- it was worked out ` +
+        'from the photographs. Treat it as a probable fact, not a confirmed one: record it in ' +
+        'productIdentity.brand/model so unseen views can be completed correctly, list it under ' +
+        'probableFacts rather than confirmedFacts, and still never render a badge, model number ' +
+        'or any lettering that is not legible in a source photograph.'
+      : 'visual_identification: none -- no brand or model could be established from the photographs',
     `source photo count: ${sources.length}` +
       (shown.length < sources.length
         ? ` (${shown.length} of them attached below, sampled across the set; the indices are the ` +
@@ -732,6 +800,20 @@ export async function analyzeCampaign(
   //
   // A failure is not fatal. Without the lock the set drifts the way it did before the lock
   // existed, which is bad and is still better than refusing a campaign the seller has paid for.
+  // The planner is conservative about brand and often returns null even when the identification
+  // pass read a logo off the control panel. Losing that costs real coverage: the v5 inference
+  // policy gates model-completion on an established identity, so a null brand silently downgrades
+  // every shot that could have been completed from knowledge of the actual product.
+  if (!parsed.productIdentity.brand && identified.brand) {
+    parsed.productIdentity.brand = identified.brand;
+    parsed.productIdentity.model = parsed.productIdentity.model ?? identified.model;
+    const claim = `${identified.brand} ${identified.model ?? ''}`.trim();
+    parsed.productIdentity.probableFacts = [
+      ...(parsed.productIdentity.probableFacts ?? []),
+      `Appears to be a ${claim} (${identified.basis}) -- worth confirming before listing`,
+    ];
+  }
+
   try {
     parsed.productLock = await withRateLimitRetry('product lock', () =>
       readProductFromSources(client, model, encoded, parsed.productIdentity, sellerNotes),

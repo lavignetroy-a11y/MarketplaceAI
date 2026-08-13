@@ -237,11 +237,44 @@ export function productLockWeaknesses(lock: ProductLock): string[] {
  * photograph of the wrong object is worth less than a plain photograph of the right one, and when
  * two instructions collide this is the one that should win.
  */
-export function productClause(lock: ProductLock, classification: ShotClassification): string {
+export function productClause(
+  lock: ProductLock,
+  classification: ShotClassification,
+  preserveSetting = false,
+): string {
   const counts = lock.countableParts.filter((c) => c.trim());
   const features = lock.features.filter((f) => f.trim());
   const marks = lock.marks.filter((m) => m.trim());
   const never = lock.neverShow.filter((n) => n.trim());
+
+  // On an edit of a real photograph the object is already correct in the input, so this section
+  // becomes a checklist for what must SURVIVE the edit. Told to "verify and redraw", the model
+  // regenerates the machine it already had a photograph of, which is how a genuine picture of a
+  // dryer drum came back as a different appliance.
+  if (preserveSetting) {
+    return `
+THE OBJECT -- ALREADY CORRECT IN THIS PHOTOGRAPH, KEEP IT THAT WAY
+The image you have been given is a real photograph of the actual object being sold. It is already
+right. Your job is to correct the PHOTOGRAPHY -- exposure, white balance, focus, noise, straighten,
+crop -- and to leave the object itself, its surroundings and its framing alone.
+
+Do not redraw, re-render, replace or reconstruct the object or any part of it. Do not move the
+camera. Do not rebuild the background, put the item in a different room, or extend the frame.
+
+For reference, this is what is in front of you, and all of it must survive unchanged:
+${lock.identity}
+${counts.length ? counts.map((c) => `- ${c}`).join('\n') : ''}
+${features.length ? features.map((f) => `- ${f}`).join('\n') : ''}
+
+These marks are real and stay exactly as they are, at their true severity, neither reduced nor
+exaggerated:
+${marks.length ? marks.map((m) => `- ${m}`).join('\n') : '- none recorded'}
+
+Do NOT add wear, rust, staining, scratches or damage anywhere. Every mark this object has is
+already in the photograph. Anything you add is damage to goods that are not damaged, which
+misrepresents them just as badly as hiding a fault would.
+`.trim();
+  }
 
   return `
 THE OBJECT -- ONE SPECIFIC SECOND-HAND ITEM, NOT AN EXAMPLE OF ITS TYPE
@@ -285,6 +318,14 @@ object, and it does not come and go between photographs -- a rust patch visible 
 absent from the next tells a buyer the photographs are fabricated:`
 }
 ${marks.length ? marks.map((m) => `- ${m}`).join('\n') : '- no visible damage or wear was recorded; do not invent any, and do not idealise the object either'}
+
+EVERYWHERE ELSE ON THIS OBJECT IS UNMARKED. That list is exhaustive: it is every fault the object
+has. Do not add rust, staining, scratches, dents, chips, corrosion, discolouration or grime
+anywhere it does not name. In particular, a mark recorded at ONE location does not spread -- rust
+recorded around a lid does not also appear along the base, up the sides, or on the second unit, and
+a scratch on one door does not reappear on the other. Adding damage to goods that do not have it
+misrepresents them exactly as badly as hiding a fault would, and it is the more likely error here,
+because "used appliance" pulls toward generic grime that this particular object does not have.
 
 WHAT THIS OBJECT IS NOT -- do not draw any of these, whatever is typical for the category
 ${never.length ? never.map((n) => `- ${n}`).join('\n') : '- nothing further'}

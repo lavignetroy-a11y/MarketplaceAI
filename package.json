@@ -14,7 +14,8 @@
     "ab": "tsx scripts/ab-prompts.ts",
     "refine": "tsx scripts/refine-prompt.ts",
     "ab:all": "tsx scripts/ab-matrix.ts",
-    "preflight": "tsx scripts/preflight.ts"
+    "preflight": "tsx scripts/preflight.ts",
+    "models": "tsx scripts/models.ts"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.112.2",

@@ -202,11 +202,21 @@ async function generate(
   // lock that names one specific room cannot both be advisory -- the lock has to win. Same for the
   // preparation: this staging has to match lib/campaign/pipeline.ts exactly, or the harness stops
   // measuring the thing that actually ships.
+  // Must match lib/campaign/pipeline.ts stage() exactly. A shot that edits a real photograph
+  // already has its room from a camera, and handing it "BUILD THIS ROOM" replaces the photograph
+  // with an invented render -- which is what happened to five source_edit detail shots at once.
+  const preserveSetting =
+    shot.productionMode === 'source_edit' || shot.productionMode === 'hero_edit';
+
   const parts: string[] = [];
-  if (analysis.productLock) parts.push(productClause(analysis.productLock, shot.classification));
-  if (scene) parts.push(sceneClause(scene, !analysis.productLock));
-  else if (analysis.environmentDescription) {
-    parts.push(plannedSettingClause(analysis.environmentDescription));
+  if (analysis.productLock) {
+    parts.push(productClause(analysis.productLock, shot.classification, preserveSetting));
+  }
+  if (!preserveSetting) {
+    if (scene) parts.push(sceneClause(scene, !analysis.productLock));
+    else if (analysis.environmentDescription) {
+      parts.push(plannedSettingClause(analysis.environmentDescription));
+    }
   }
   if (analysis.presentation) {
     const clause = presentationClause(analysis.presentation, shot.classification);
