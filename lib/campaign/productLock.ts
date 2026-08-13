@@ -9,52 +9,44 @@
 //
 // Every one of those images was individually plausible. None of them was the thing being sold.
 //
-// WHY IT HAPPENED, WHICH IS STRUCTURAL AND NOT BAD LUCK
+// WHY IT HAPPENS, WHICH IS STRUCTURAL AND NOT BAD LUCK
 //
-// The scene lock taught us the lesson and we only applied half of it. An edit model handed several
+// The scene lock taught the lesson and only half of it was applied. An edit model handed several
 // reference photographs averages them; it does not treat one as a specification to match. Text
 // transfers where a reference image does not. That is why writing the room down fixed the room.
 //
 // The item never got the same treatment. The only thing carrying it between shots was
-// SceneLock.item -- one free-text paragraph, and worse, one read out of the GENERATED HERO. So the
-// chain ran:
+// SceneLock.item -- one free-text paragraph, read out of the GENERATED HERO, so the hero's own
+// drift was propagated faithfully to everything behind it.
 //
-//   1. the hero is generated with no dense description of the item, from averaged references,
-//      and reinvents it;
-//   2. the scene reader faithfully describes that reinvention;
-//   3. every later shot is locked to the reinvention, and drifts further, because a paragraph
-//      about "a beige sectional sofa" cannot hold a section count or a control panel layout.
+// WHY THIS IS ITS OWN CALL AND NOT A FIELD ON THE PLAN
 //
-// The room was consistent and the product was not, which is the worst of both: a coherent set of
-// photographs of an object the buyer will never receive.
+// It was a field on the planning schema first, and it came back limp: "standard rectangular
+// shape", "the washer is on the left", `neverShow: ["not a complete new set"]`. Every instruction
+// about specificity was present and none of it was followed.
 //
-// WHAT THIS DOES DIFFERENTLY
-//
-// It is read from the SOURCE PHOTOGRAPHS, by the planner that is already looking at them at full
-// detail, and it is injected into EVERY shot including the hero. The hero is the shot that most
-// needs it, since everything downstream inherits whatever it decides.
-//
-// It is also written to be checkable rather than evocative. "A comfortable modern sectional" is
-// unfalsifiable and reproduces nothing. "Six seat sections in a row plus a chaise at the LEFT end;
-// four cushions across the back" is a specification, and a generated image either satisfies it or
-// visibly does not.
-//
-// `neverShow` earns its place the same way `absent` did in the scene lock. Naming what the object
-// is NOT is what stops a top-loader being rendered with a round front door, because the model's
-// prior for "washing machine" is a front-loader and no amount of positive description outvotes a
-// prior. The absence has to be stated.
+// The comparison that explains it is sitting in the same codebase. readSceneFromHero() is a small
+// focused call with one job, and it returns dense, checkable, genuinely useful text from the same
+// model. The product lock was one field among a dozen at the end of a nineteen-thousand-token
+// brief, and it got a dozenth of the attention. Structured extraction does not survive being an
+// afterthought in a large prompt, so it gets its own call, its own short brief, and a schema whose
+// shape makes vagueness difficult -- counts are integers, enumerations are arrays.
 
-import type { ShotClassification } from './types';
+import type OpenAI from 'openai';
+import type { ProductIdentity, ShotClassification, SourcePhoto } from './types';
 
 export type ProductLock = {
   /** One line: exactly what this object is, in the terms a buyer would search for. */
   identity: string;
+  /** How many separate physical units are being sold. One sofa is 1; a washer and dryer is 2. */
+  unitCount: number;
+  /** How the units and their major parts sit relative to one another, stated left to right. */
+  layout: string;
   /**
-   * The countable, structural facts -- units, sections, seats, doors, drawers, burners, knobs,
-   * wheels -- with their arrangement stated left to right. This is the field that fails most
-   * often and matters most, because a buyer counts.
+   * The countable facts, one per entry, each opening with a number. This is the field that fails
+   * most often and matters most, because a buyer counts what is in the picture.
    */
-  configuration: string;
+  countableParts: string[];
   /** Proportions and silhouette: relative dimensions, shape of arms, legs, edges, profile. */
   form: string;
   /** Colour with its undertone, material, weave or finish, and how the surface takes light. */
@@ -70,6 +62,174 @@ export type ProductLock = {
   neverShow: string[];
 };
 
+const productLockSchema = {
+  type: 'object',
+  additionalProperties: false,
+  properties: {
+    identity: { type: 'string' },
+    unitCount: { type: 'integer' },
+    layout: { type: 'string' },
+    countableParts: { type: 'array', items: { type: 'string' } },
+    form: { type: 'string' },
+    colorAndMaterial: { type: 'string' },
+    features: { type: 'array', items: { type: 'string' } },
+    marks: { type: 'array', items: { type: 'string' } },
+    neverShow: { type: 'array', items: { type: 'string' } },
+  },
+  required: [
+    'identity',
+    'unitCount',
+    'layout',
+    'countableParts',
+    'form',
+    'colorAndMaterial',
+    'features',
+    'marks',
+    'neverShow',
+  ],
+} as const;
+
+const READER_ROLE = `
+You are writing the specification a manufacturer would need to build one specific second-hand
+object, from photographs of it, for someone who will never see those photographs.
+
+That framing is the whole job. You are not describing the item attractively, and you are not
+summarising it. You are recording the facts that distinguish THIS object from every other object of
+its type, precisely enough that a drawing made from your notes can be checked against them and
+found right or wrong.
+
+WRITE WHAT CAN BE CHECKED, NOT WHAT READS WELL
+"A standard rectangular washing machine" is unfalsifiable and reproduces nothing. "Top-loading
+washer, lid hinged at the rear, four control dials in a row across the back panel with a rotary
+timer at the far left" can be checked against a drawing and either holds or visibly fails. Every
+line you write should be capable of being wrong.
+
+COUNT EVERYTHING A BUYER WOULD COUNT
+countableParts is the field that fails most often. Every entry begins with a number, and there
+should be several: seat sections, cushions, dials, buttons, doors, drawers, shelves, burners,
+wheels, legs, pockets, tiers. If the photographs show four dials, "4 control dials" is the answer
+and "several controls" is not. When you genuinely cannot count something because no photograph
+shows it clearly, leave it out rather than guessing a number.
+
+POSITIONS ARE PART OF THE FACT
+Say where things are, using left and right as somebody facing the front of the item would see
+them. A control panel with the right number of dials in the wrong order is a different machine,
+and a buyer spots that instantly.
+
+MARKS BELONG TO PLACES
+Record every visible mark, scuff, stain, rust patch, chip, tear and worn area WITH ITS LOCATION on
+the object. Locations are what stop a rust patch drifting to the other side of the machine between
+photographs, or appearing in one and vanishing from the next.
+
+neverShow IS NOT PADDING -- IT IS THE MOST VALUABLE FIELD YOU WRITE
+An image model has a powerful prior for what a category looks like, and no amount of positive
+description outvotes a prior. A top-loading washer WILL be drawn as a front-loader unless you
+write "NOT a front-loader; there is no round glass door anywhere in the front panel". A six-piece
+sectional WILL be drawn as a three-seat sofa unless you forbid it.
+So: work out what a careless artist would draw if they read only the category name and ignored the
+photographs -- then forbid exactly that, in plain words, one entry per mistake. Aim at the specific
+likely error, never at generalities. "Not a complete new set" forbids nothing anybody would draw.
+Three to six entries. Include the item's real wear here too if it is at risk of being cleaned up:
+"not a clean example -- the rust around the lid is present in every view".
+
+NEVER NAME A BRAND YOU CANNOT SEE
+State a manufacturer, model name or model number ONLY if it is legible in a photograph or the
+seller wrote it down. Guessing one from an appliance's silhouette is a false claim about what is
+being sold. Where you have no brand, describe the object without one.
+
+Write plainly and densely. No adjectives that carry no information. No commentary.
+`.trim();
+
+/**
+ * Reads the object out of the seller's own photographs.
+ *
+ * Deliberately given the sources rather than the generated hero: a hero that has already reinvented
+ * the item would otherwise have its reinvention recorded as fact and propagated to every remaining
+ * shot, which is exactly the failure this exists to stop.
+ */
+export async function readProductFromSources(
+  client: OpenAI,
+  model: string,
+  images: string[],
+  identity: ProductIdentity,
+  sellerNotes: string,
+): Promise<ProductLock> {
+  const known = identity.brand
+    ? `The seller's own listing identifies this as: ${identity.brand} ${identity.model ?? ''}`.trim()
+    : 'NO brand or model has been established for this item. Do not name one.';
+
+  const completion = await client.chat.completions.create({
+    model,
+    messages: [
+      { role: 'system', content: READER_ROLE },
+      {
+        role: 'user',
+        content: [
+          {
+            type: 'text' as const,
+            text:
+              `The item is: ${identity.itemType} (${identity.category}), ` +
+              `quantity ${identity.quantity}.\n${known}\n` +
+              `Seller notes: ${sellerNotes.trim() || 'none provided'}\n\n` +
+              'Write the specification for this object.',
+          },
+          ...images.map((url) => ({
+            type: 'image_url' as const,
+            image_url: { url, detail: 'high' as const },
+          })),
+        ],
+      },
+    ],
+    response_format: {
+      type: 'json_schema',
+      json_schema: { name: 'product_lock', strict: true, schema: productLockSchema },
+    },
+  });
+
+  const raw = completion.choices[0]?.message?.content;
+  if (!raw) throw new Error('Product reader returned no content.');
+  return JSON.parse(raw) as ProductLock;
+}
+
+/**
+ * Cheap tells that the lock came back vague, reported rather than repaired.
+ *
+ * Repairing it is not possible -- nothing here can invent a dial count nobody recorded. What this
+ * can do is put the weakness in front of a person BEFORE the images are generated, since a limp
+ * lock is visible in two seconds here and takes eight images and several dollars to discover
+ * otherwise.
+ */
+export function productLockWeaknesses(lock: ProductLock): string[] {
+  const warnings: string[] = [];
+  const numbered = lock.countableParts.filter((p) => /\d/.test(p));
+
+  if (numbered.length < 2) {
+    warnings.push(
+      `only ${numbered.length} countable fact(s) with an actual number -- a buyer counts, and ` +
+        'this is what stops the section or dial count drifting',
+    );
+  }
+  if (!lock.neverShow.some((n) => /\bnot\b|\bno\b|\bnever\b|\bwithout\b/i.test(n))) {
+    warnings.push(
+      'neverShow contains no actual prohibition, so the model\'s default idea of this category ' +
+        'is unopposed -- this is the field that stops a top-loader being drawn with a front door',
+    );
+  }
+  if (lock.neverShow.length < 2) {
+    warnings.push(`neverShow has only ${lock.neverShow.length} entry; two to six is the useful range`);
+  }
+  if (!lock.marks.length) {
+    warnings.push('no marks recorded, so nothing stops the set drifting toward a clean example');
+  }
+  if (lock.features.length < 2) {
+    warnings.push('fewer than two features with positions, so hardware layout is unconstrained');
+  }
+  if (/\b(standard|typical|normal|regular|ordinary|classic|modern|traditional)\b/i.test(lock.form)) {
+    warnings.push(`form is generic ("${lock.form.slice(0, 60)}...") and cannot be checked against a drawing`);
+  }
+  return warnings;
+}
+
 /**
  * The clause injected ahead of everything else in every shot.
  *
@@ -78,6 +238,7 @@ export type ProductLock = {
  * two instructions collide this is the one that should win.
  */
 export function productClause(lock: ProductLock, classification: ShotClassification): string {
+  const counts = lock.countableParts.filter((c) => c.trim());
   const features = lock.features.filter((f) => f.trim());
   const marks = lock.marks.filter((m) => m.trim());
   const never = lock.neverShow.filter((n) => n.trim());
@@ -92,11 +253,12 @@ less attractive.
 
 WHAT IT IS
 ${lock.identity}
+${lock.unitCount} separate unit${lock.unitCount === 1 ? '' : 's'} being sold. ${lock.layout}
 
-STRUCTURE AND COUNT -- verify this against the image before finishing
-${lock.configuration}
-A buyer counts what is in the picture. If the count or the arrangement here disagrees with what you
-have drawn, the drawing is wrong and must be redone, however well it reads otherwise.
+COUNT -- verify every line of this against the image before you finish
+${counts.length ? counts.map((c) => `- ${c}`).join('\n') : '- no counts were recorded'}
+A buyer counts what is in the picture. If any count or position here disagrees with what you have
+drawn, the drawing is wrong and must be redone, however well it reads otherwise.
 
 FORM AND PROPORTION
 ${lock.form}
@@ -128,9 +290,8 @@ WHAT THIS OBJECT IS NOT -- do not draw any of these, whatever is typical for the
 ${never.length ? never.map((n) => `- ${n}`).join('\n') : '- nothing further'}
 
 THE CHECK BEFORE YOU FINISH
-Compare what you have drawn against the four sections above, in this order: the count, the
-features and their positions, the colour, the marks. Any disagreement means this is a photograph
-of a different object than the one being sold, which is the one failure this whole set cannot
-survive.
+Compare what you have drawn against the sections above, in this order: the counts, the features and
+their positions, the colour, the marks. Any disagreement means this is a photograph of a different
+object than the one being sold, which is the one failure this whole set cannot survive.
 `.trim();
 }

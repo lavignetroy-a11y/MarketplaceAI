@@ -53,7 +53,7 @@ import {
   type SceneLock,
 } from '../lib/campaign/sceneLock';
 import { presentationClause } from '../lib/campaign/presentation';
-import { productClause } from '../lib/campaign/productLock';
+import { productClause, productLockWeaknesses } from '../lib/campaign/productLock';
 import { STRATEGIES, strategyById, type PromptStrategy } from '../lib/campaign/strategies';
 import { MAX_IMAGES } from '../lib/config/pricing';
 import type { AnalysisResult, ImageQuality, ShotPlan, SourcePhoto } from '../lib/campaign/types';
@@ -506,12 +506,21 @@ async function main() {
     const p = analysis.productLock;
     console.log('\n  PRODUCT LOCK -- check this first; every image is held to it');
     console.log(`    what      ${p.identity}`);
-    console.log(`    count     ${p.configuration}`);
+    console.log(`    units     ${p.unitCount} -- ${p.layout}`);
+    (p.countableParts ?? []).forEach((c, i) => console.log(`    ${i ? '     ' : 'count'}     ${c}`));
     console.log(`    form      ${p.form}`);
     console.log(`    colour    ${p.colorAndMaterial}`);
     (p.features ?? []).forEach((f, i) => console.log(`    ${i ? '     ' : 'feat '}     ${f}`));
     (p.marks ?? []).forEach((m, i) => console.log(`    ${i ? '     ' : 'marks'}     ${m}`));
     (p.neverShow ?? []).forEach((n, i) => console.log(`    ${i ? '     ' : 'never'}     ${n}`));
+
+    // Surfaced here rather than buried in a console.warn, because the whole value of printing the
+    // lock is catching a limp one in the seconds before eight images are paid for.
+    const weak = productLockWeaknesses(p);
+    if (weak.length) {
+      console.log('\n  ** THIS LOCK IS WEAK -- expect drift:');
+      weak.forEach((w) => console.log(`     - ${w}`));
+    }
   }
 
   if (analysis.environmentDescription) {
