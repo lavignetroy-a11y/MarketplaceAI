@@ -100,17 +100,33 @@ const classificationSchema = {
     isMatchingSet: { type: 'boolean' },
     brand: { type: ['string', 'null'] },
     model: { type: ['string', 'null'] },
+    productionYears: { type: ['string', 'null'] },
     identificationBasis: { type: 'string' },
   },
-  required: ['itemType', 'category', 'isMatchingSet', 'brand', 'model', 'identificationBasis'],
+  required: [
+    'itemType',
+    'category',
+    'isMatchingSet',
+    'brand',
+    'model',
+    'productionYears',
+    'identificationBasis',
+  ],
 } as const;
 
 export type Identification = {
   profile: CategoryProfile;
   brand: string | null;
   model: string | null;
+  productionYears: string | null;
   basis: string;
 };
+
+/** "GE GTW460ASJWW", or null when the item was never pinned down. */
+export function identifiedProductName(id: Identification): string | null {
+  const name = [id.brand, id.model].filter(Boolean).join(' ').trim();
+  return name || null;
+}
 
 /**
  * Longest edge for the identification pass.
@@ -160,17 +176,36 @@ async function classifyItem(
               'washing machine"); category is the broad family ("furniture", "appliance", ' +
               '"vehicle", "tool", "jewelry", "fitness", "electronics"); isMatchingSet is true ' +
               'when several units of the same thing are sold together.\n\n' +
-              'brand and model: WORK THEM OUT IF YOU CAN. Read any badge, logo, model plate or ' +
-              'sticker in the photographs, and recognise the manufacturer from the design where ' +
-              'you genuinely can -- control panel layout, dial style, door shape and trim ' +
-              'identify a mass-produced appliance or tool as reliably as a badge does. This is ' +
-              'worth real effort: knowing the exact product is what lets unseen views be ' +
-              'completed correctly instead of generically.\n' +
-              'But do not guess to be helpful. Return null when you are not actually confident, ' +
-              'and prefer a confident brand with a null model over an invented model number. ' +
-              'identificationBasis says how you know, in a few words -- "logo legible on the ' +
-              'control panel", "recognised from the dial layout and lid shape", or "not ' +
-              'identifiable" when both are null.',
+              'BRAND, MODEL AND YEAR: WORK THEM OUT. Spend real effort here -- this is the ' +
+              'highest-value thing you can determine, because naming the exact product turns ' +
+              'every later step from reconstruction into recall. An image model asked for "a ' +
+              'white top-load washer" averages every washer it has seen; asked for a model it ' +
+              'knows, it draws that one with the right dials in the right order.\n\n' +
+              'How to work it out, in order:\n' +
+              '  1. Read every badge, logo, model plate, sticker and moulded marking in the ' +
+              'photographs, including partial and half-legible ones.\n' +
+              '  2. Recognise it from the design. A mass-produced appliance, tool or vehicle is ' +
+              'identified as reliably by its control panel layout, dial style and count, door ' +
+              'and lid shape, trim and proportions as by any badge. You have seen these ' +
+              'products; this is ordinary product knowledge, not speculation.\n' +
+              '  3. Narrow to a model number where the design pins one, and give the production ' +
+              'years you know that model ran, in productionYears ("2015-2021").\n\n' +
+              'FORK BY WHAT THE ITEM IS, because different things are identified differently:\n' +
+              '  vehicle    -- year, make, model and trim; trim matters, since it changes ' +
+              'bumpers, wheels and exhausts.\n' +
+              '  appliance  -- brand, model number, capacity and configuration (top vs front ' +
+              'load, gas vs electric), and roughly when it was made.\n' +
+              '  tool       -- brand, model, and the variant that fixes what the tool looks ' +
+              'like (corded vs cordless, deck size, motor).\n' +
+              '  electronics-- brand, model line and generation, since the generation decides ' +
+              'the ports and the case.\n' +
+              '  furniture / jewelry -- usually unbranded. Say so and move on; do not strain.\n\n' +
+              'Do not guess to be helpful. Return null when you are not actually confident, and ' +
+              'prefer a confident brand with a null model over an invented model number -- a ' +
+              'wrong model number is a false specification about goods for sale. ' +
+              'identificationBasis says how you know, in a few words: "GE logo on the control ' +
+              'panel plus the five-dial layout", "recognised from the lid shape", "not ' +
+              'identifiable".',
           },
           {
             role: 'user',
@@ -197,12 +232,14 @@ async function classifyItem(
       isMatchingSet: boolean;
       brand: string | null;
       model: string | null;
+      productionYears: string | null;
       identificationBasis: string;
     };
     return {
       profile: profileFor(c.itemType, c.category, c.isMatchingSet),
       brand: c.brand,
       model: c.model,
+      productionYears: c.productionYears,
       basis: c.identificationBasis,
     };
   } catch (err) {
@@ -214,6 +251,7 @@ async function classifyItem(
       profile: profileFor(sellerNotes, sellerNotes, /\b(set|pair|both|matching)\b/i.test(sellerNotes)),
       brand: null,
       model: null,
+      productionYears: null,
       basis: 'identification failed',
     };
   }
@@ -750,6 +788,7 @@ export async function analyzeCampaign(
     `seller_notes: ${sellerNotes.trim() || 'none provided'}`,
     identified.brand
       ? `visual_identification: ${identified.brand} ${identified.model ?? ''}`.trim() +
+        (identified.productionYears ? `, made ${identified.productionYears}` : '') +
         ` (${identified.basis}). The seller did not necessarily state this -- it was worked out ` +
         'from the photographs. Treat it as a probable fact, not a confirmed one: record it in ' +
         'productIdentity.brand/model so unseen views can be completed correctly, list it under ' +
@@ -816,10 +855,41 @@ export async function analyzeCampaign(
 
   try {
     parsed.productLock = await withRateLimitRetry('product lock', () =>
-      readProductFromSources(client, model, encoded, parsed.productIdentity, sellerNotes),
+      readProductFromSources(
+        client,
+        model,
+        shown.map(({ index }, n) => ({ index, url: encoded[n] })),
+        parsed.productIdentity,
+        sellerNotes,
+        identifiedProductName(identified),
+        identified.productionYears,
+      ),
     );
     const weak = productLockWeaknesses(parsed.productLock);
     if (weak.length) console.warn(`Product lock is weak: ${weak.join('; ')}`);
+
+    // Pointing a prompt at "the attached photograph labelled SOURCE 2" only works if SOURCE 2 is
+    // actually attached. Every shot that reconstructs the object gets the photographs its faults
+    // live in, so a mark can be copied instead of imagined -- which is the whole point of
+    // recording where each one was photographed.
+    //
+    // Not applied to source_edit or hero_edit: those take exactly one input image by definition,
+    // and the fault is already in it.
+    const markSources = Array.from(
+      new Set(
+        parsed.productLock.marks
+          .map((m) => m.sourcePhotoIndex)
+          .filter((i): i is number => i !== null && i >= 0 && i < sources.length),
+      ),
+    );
+    if (markSources.length) {
+      for (const shot of parsed.shots) {
+        if (shot.productionMode === 'source_edit' || shot.productionMode === 'hero_edit') continue;
+        shot.referenceSourceIndices = Array.from(
+          new Set([...(shot.referenceSourceIndices ?? []), ...markSources]),
+        );
+      }
+    }
   } catch (err) {
     console.error('Product lock failed; the set will be less consistent:', err);
   }

@@ -35,9 +35,42 @@
 import type OpenAI from 'openai';
 import type { ProductIdentity, ShotClassification, SourcePhoto } from './types';
 
+/**
+ * One real fault, anchored to the photograph that shows it.
+ *
+ * The anchor is the point. Describing a fault in words and asking an image model to draw it is
+ * asking it to INVENT damage, and it invents generously -- "rust spots around the washer lid"
+ * came back as rust along the base of both machines in four frames out of eight. A described
+ * fault is a licence to add grime; a fault the model can look at is a thing to copy.
+ *
+ * So each mark carries the index of an upload that actually shows it, that upload is attached to
+ * the shots covering that area, and the instruction becomes "reproduce what is in the photograph"
+ * rather than "add rust here".
+ */
+export type ProductMark = {
+  /** What it is: "surface rust", "a chip in the enamel", "sun-faded panel". */
+  what: string;
+  /** Where it is, tightly enough to place it: which panel, which corner, roughly how big. */
+  where: string;
+  /** Index of an upload that shows it, or null when no photograph captures it clearly. */
+  sourcePhotoIndex: number | null;
+};
+
 export type ProductLock = {
   /** One line: exactly what this object is, in the terms a buyer would search for. */
   identity: string;
+  /**
+   * The exact mass-produced product, when it has been identified -- "GE GTW460ASJWW top-load
+   * washer". Null when unknown.
+   *
+   * This is the single most valuable thing the system can know about an item, because it converts
+   * the whole job from reconstruction to recall. An image model asked for "a white top-load
+   * washer" averages every washer it has seen; asked for a named model it has seen thousands of
+   * times, it draws that one, with the right dial count in the right order.
+   */
+  identifiedProduct: string | null;
+  /** Roughly when it was made, when that is known. Buyers ask, and it bounds the styling. */
+  productionYears: string | null;
   /** How many separate physical units are being sold. One sofa is 1; a washer and dryer is 2. */
   unitCount: number;
   /** How the units and their major parts sit relative to one another, stated left to right. */
@@ -53,8 +86,8 @@ export type ProductLock = {
   colorAndMaterial: string;
   /** Hardware, controls, panels, badges, trim -- each with WHERE it is on the object. */
   features: string[];
-  /** Every visible mark, wear, stain, rust patch or damage, with its exact location. */
-  marks: string[];
+  /** Every visible mark, wear, stain, rust patch or damage, anchored to a photograph of it. */
+  marks: ProductMark[];
   /**
    * What this object is NOT, aimed squarely at the likeliest wrong answer. Without this a
    * top-loading washer gets rendered with a front door, because that is the stronger prior.
@@ -73,7 +106,19 @@ const productLockSchema = {
     form: { type: 'string' },
     colorAndMaterial: { type: 'string' },
     features: { type: 'array', items: { type: 'string' } },
-    marks: { type: 'array', items: { type: 'string' } },
+    marks: {
+      type: 'array',
+      items: {
+        type: 'object',
+        additionalProperties: false,
+        properties: {
+          what: { type: 'string' },
+          where: { type: 'string' },
+          sourcePhotoIndex: { type: ['integer', 'null'] },
+        },
+        required: ['what', 'where', 'sourcePhotoIndex'],
+      },
+    },
     neverShow: { type: 'array', items: { type: 'string' } },
   },
   required: [
@@ -116,10 +161,22 @@ Say where things are, using left and right as somebody facing the front of the i
 them. A control panel with the right number of dials in the wrong order is a different machine,
 and a buyer spots that instantly.
 
-MARKS BELONG TO PLACES
-Record every visible mark, scuff, stain, rust patch, chip, tear and worn area WITH ITS LOCATION on
-the object. Locations are what stop a rust patch drifting to the other side of the machine between
-photographs, or appearing in one and vanishing from the next.
+MARKS BELONG TO PLACES, AND TO PHOTOGRAPHS
+Record every visible mark, scuff, stain, rust patch, chip, tear and worn area. Each one needs three
+things: what it is, where it is, and WHICH PHOTOGRAPH SHOWS IT.
+
+The photograph index is not bookkeeping, it is the whole mechanism. A fault described in words is
+an instruction to an image model to invent damage, and it invents generously -- "rust spots around
+the washer lid" came back as rust along the base of both machines. A fault with a photograph
+attached is something to copy instead. So set sourcePhotoIndex to the SOURCE INDEX of an upload
+that actually shows that fault clearly, and null only when nothing does.
+
+Be exact about "where": which panel, which corner, how far along, roughly how big. "A patch of
+surface rust about an inch wide on the bottom-left corner of the washer's front panel" places it.
+"Some rust" does not, and will be drawn everywhere.
+
+Record only faults you can actually SEE in a photograph. Do not list what an appliance of this age
+probably has.
 
 neverShow IS NOT PADDING -- IT IS THE MOST VALUABLE FIELD YOU WRITE
 An image model has a powerful prior for what a category looks like, and no amount of positive
@@ -137,6 +194,13 @@ State a manufacturer, model name or model number ONLY if it is legible in a phot
 seller wrote it down. Guessing one from an appliance's silhouette is a false claim about what is
 being sold. Where you have no brand, describe the object without one.
 
+IF THE EXACT PRODUCT IS NAMED FOR YOU
+You may be told the manufacturer and model. When you are, use what you know about that specific
+product to make the specification RIGHT rather than merely descriptive -- the true dial count and
+order, the badge position, the panel shape -- and say so plainly. What you may not do is invent
+anything the photographs contradict, or record a fault the product line has generally rather than
+one this unit shows.
+
 Write plainly and densely. No adjectives that carry no information. No commentary.
 `.trim();
 
@@ -150,12 +214,17 @@ Write plainly and densely. No adjectives that carry no information. No commentar
 export async function readProductFromSources(
   client: OpenAI,
   model: string,
-  images: string[],
+  images: { index: number; url: string }[],
   identity: ProductIdentity,
   sellerNotes: string,
+  identifiedProduct: string | null = null,
+  productionYears: string | null = null,
 ): Promise<ProductLock> {
-  const known = identity.brand
-    ? `The seller's own listing identifies this as: ${identity.brand} ${identity.model ?? ''}`.trim()
+  const named = identifiedProduct ?? [identity.brand, identity.model].filter(Boolean).join(' ');
+  const known = named
+    ? `This has been identified as: ${named}` +
+      (productionYears ? ` (made ${productionYears})` : '') +
+      '. Use what you know about that exact product to get the details right.'
     : 'NO brand or model has been established for this item. Do not name one.';
 
   const completion = await client.chat.completions.create({
@@ -173,10 +242,10 @@ export async function readProductFromSources(
               `Seller notes: ${sellerNotes.trim() || 'none provided'}\n\n` +
               'Write the specification for this object.',
           },
-          ...images.map((url) => ({
-            type: 'image_url' as const,
-            image_url: { url, detail: 'high' as const },
-          })),
+          ...images.flatMap(({ index, url }) => [
+            { type: 'text' as const, text: `SOURCE INDEX ${index}:` },
+            { type: 'image_url' as const, image_url: { url, detail: 'high' as const } },
+          ]),
         ],
       },
     ],
@@ -188,7 +257,19 @@ export async function readProductFromSources(
 
   const raw = completion.choices[0]?.message?.content;
   if (!raw) throw new Error('Product reader returned no content.');
-  return JSON.parse(raw) as ProductLock;
+  const parsed = JSON.parse(raw) as ProductLock;
+
+  // A cited index that does not exist would attach nothing and quietly turn an anchored fault back
+  // into an invented one, so it is demoted to "described only" where the wording is more cautious.
+  const valid = new Set(images.map((i) => i.index));
+  parsed.marks = (parsed.marks ?? []).map((m) =>
+    m.sourcePhotoIndex !== null && !valid.has(m.sourcePhotoIndex)
+      ? { ...m, sourcePhotoIndex: null }
+      : m,
+  );
+  parsed.identifiedProduct = identifiedProduct ?? null;
+  parsed.productionYears = productionYears ?? null;
+  return parsed;
 }
 
 /**
@@ -244,7 +325,34 @@ export function productClause(
 ): string {
   const counts = lock.countableParts.filter((c) => c.trim());
   const features = lock.features.filter((f) => f.trim());
-  const marks = lock.marks.filter((m) => m.trim());
+  const marks = (lock.marks ?? []).filter((m) => m.what?.trim());
+  const renderMark = (m: ProductMark) =>
+    m.sourcePhotoIndex === null
+      ? `- ${m.what} -- ${m.where}`
+      : `- ${m.what} -- ${m.where}. IT IS VISIBLE IN THE ATTACHED REFERENCE PHOTOGRAPH LABELLED ` +
+        `SOURCE ${m.sourcePhotoIndex}. Copy how it actually looks there: its real size, shape, ` +
+        `colour and edges. Do not invent your own version of it and do not make it worse.`;
+
+  // Naming the exact product converts the job from reconstruction to recall, which is the single
+  // biggest quality lever available here. A model asked for "a white top-load washer" averages
+  // every washer it has seen; asked for one it has seen thousands of times, it draws that one,
+  // with the right dials in the right order.
+  const identified = lock.identifiedProduct
+    ? `
+THIS IS AN IDENTIFIED PRODUCT -- DRAW THE ONE YOU KNOW
+${lock.identifiedProduct}${lock.productionYears ? ` (made ${lock.productionYears})` : ''}
+
+You have seen this exact product many times. Use that. Its control layout, dial count and order,
+badge placement, panel shape, door and lid design, proportions and trim are known things, not
+things to approximate -- draw them as they actually are on this model rather than as a generic
+example of the category. Where the description below and your knowledge of this model agree, you
+should be confident; where they disagree, the photographs win, because this is a used unit and it
+may have been changed or damaged.
+
+What you must NOT take from product knowledge: this unit's condition. A catalogue image of this
+model is clean and new. This one is neither.
+`.trim()
+    : '';
   const never = lock.neverShow.filter((n) => n.trim());
 
   // On an edit of a real photograph the object is already correct in the input, so this section
@@ -262,13 +370,13 @@ Do not redraw, re-render, replace or reconstruct the object or any part of it. D
 camera. Do not rebuild the background, put the item in a different room, or extend the frame.
 
 For reference, this is what is in front of you, and all of it must survive unchanged:
-${lock.identity}
+${lock.identity}${lock.identifiedProduct ? ` -- ${lock.identifiedProduct}` : ''}
 ${counts.length ? counts.map((c) => `- ${c}`).join('\n') : ''}
 ${features.length ? features.map((f) => `- ${f}`).join('\n') : ''}
 
 These marks are real and stay exactly as they are, at their true severity, neither reduced nor
 exaggerated:
-${marks.length ? marks.map((m) => `- ${m}`).join('\n') : '- none recorded'}
+${marks.length ? marks.map((m) => `- ${m.what} -- ${m.where}`).join('\n') : '- none recorded'}
 
 Do NOT add wear, rust, staining, scratches or damage anywhere. Every mark this object has is
 already in the photograph. Anything you add is damage to goods that are not damaged, which
@@ -287,6 +395,7 @@ less attractive.
 WHAT IT IS
 ${lock.identity}
 ${lock.unitCount} separate unit${lock.unitCount === 1 ? '' : 's'} being sold. ${lock.layout}
+${identified ? `\n${identified}\n` : ''}
 
 COUNT -- verify every line of this against the image before you finish
 ${counts.length ? counts.map((c) => `- ${c}`).join('\n') : '- no counts were recorded'}
@@ -317,7 +426,7 @@ the area it sits on, it appears, at its true severity. It does not migrate to an
 object, and it does not come and go between photographs -- a rust patch visible in one image and
 absent from the next tells a buyer the photographs are fabricated:`
 }
-${marks.length ? marks.map((m) => `- ${m}`).join('\n') : '- no visible damage or wear was recorded; do not invent any, and do not idealise the object either'}
+${marks.length ? marks.map(renderMark).join('\n') : '- no visible damage or wear was recorded; do not invent any, and do not idealise the object either'}
 
 EVERYWHERE ELSE ON THIS OBJECT IS UNMARKED. That list is exhaustive: it is every fault the object
 has. Do not add rust, staining, scratches, dents, chips, corrosion, discolouration or grime
