@@ -44,6 +44,7 @@ import {
   dataUrlToSourcePhoto,
   editHeroImage,
   editSourceImage,
+  generateFromKnowledge,
   generateShotImage,
 } from '../lib/campaign/generateImages';
 import {
@@ -226,6 +227,9 @@ async function generate(
     ? { ...shot, prompt: `${parts.join('\n\n')}\n\n${shot.prompt}` }
     : shot;
 
+  if (staged.productionMode === 'known_product') {
+    return generateFromKnowledge(client, staged, strategy.compose, quality);
+  }
   if (staged.productionMode === 'source_edit' && staged.sourcePhotoIndex !== null) {
     return editSourceImage(
       client,

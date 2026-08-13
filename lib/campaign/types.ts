@@ -58,7 +58,17 @@ export type ImageQuality = 'low' | 'medium' | 'high';
 //   lighting/palette consistency. Highest risk of geometry reconstruction errors; use sparingly.
 // independent: generated fresh from the original source photos only, no hero involvement. Same
 //   reconstruction risk as hero_reference, without a hero to match style to.
-export type ProductionMode = 'independent' | 'hero_edit' | 'hero_reference' | 'source_edit';
+// known_product: drawn purely from knowledge of an identified mass-produced item, with NO
+//   reference image -- the only mode that calls images.generate rather than images.edit. For a
+//   view no photograph covers on a product whose exact model is known, this beats reconstruction
+//   outright, because edit mode would anchor to unrelated pixels and invent the details. Valid
+//   only for factory design, never for condition: a recalled panel is a NEW panel.
+export type ProductionMode =
+  | 'independent'
+  | 'hero_edit'
+  | 'hero_reference'
+  | 'source_edit'
+  | 'known_product';
 
 export interface ShotPlan {
   sequenceNumber: number;

@@ -6,6 +6,7 @@ import { MAX_IMAGES, MIN_IMAGES } from '@/lib/config/pricing';
 import { coverageBrief, profileFor, type CategoryProfile } from './categories';
 import { sanitizePresentation } from './presentation';
 import { productLockWeaknesses, readProductFromSources } from './productLock';
+import { identifyItem, isUsable, productName, type Identification } from './identify';
 import type { AnalysisResult, RequestedImageCount, SourcePhoto } from './types';
 
 /**
@@ -88,172 +89,6 @@ async function withRateLimitRetry<T>(label: string, fn: () => Promise<T>): Promi
       console.warn(`[analyze] ${label} hit a rate limit; retrying in ${seconds}s`);
       await new Promise((resolve) => setTimeout(resolve, delays[attempt]));
     }
-  }
-}
-
-const classificationSchema = {
-  type: 'object',
-  additionalProperties: false,
-  properties: {
-    itemType: { type: 'string' },
-    category: { type: 'string' },
-    isMatchingSet: { type: 'boolean' },
-    brand: { type: ['string', 'null'] },
-    model: { type: ['string', 'null'] },
-    productionYears: { type: ['string', 'null'] },
-    identificationBasis: { type: 'string' },
-  },
-  required: [
-    'itemType',
-    'category',
-    'isMatchingSet',
-    'brand',
-    'model',
-    'productionYears',
-    'identificationBasis',
-  ],
-} as const;
-
-export type Identification = {
-  profile: CategoryProfile;
-  brand: string | null;
-  model: string | null;
-  productionYears: string | null;
-  basis: string;
-};
-
-/** "GE GTW460ASJWW", or null when the item was never pinned down. */
-export function identifiedProductName(id: Identification): string | null {
-  const name = [id.brand, id.model].filter(Boolean).join(' ').trim();
-  return name || null;
-}
-
-/**
- * Longest edge for the identification pass.
- *
- * Higher than the planner's 1024 on purpose. Recognising a manufacturer from a control panel
- * layout, or reading a half-legible badge, is exactly the task that dies first when an image is
- * downscaled -- and it is the one capability a person notices missing, because dropping the same
- * photograph into a chat window and asking "what is this?" answers it immediately. Only a few
- * photographs go through this pass, so the extra resolution is affordable here in a way it is not
- * across a whole upload.
- */
-const IDENTIFY_MAX_EDGE = 1536;
-const IDENTIFY_MAX_PHOTOS = 3;
-
-/**
- * Which coverage model this item needs, decided in its own cheap call.
- *
- * The catalog used to send all nine categories because routing needed the category and the
- * category came out of the same call that needed the table. That was a fair trade at four
- * kilobytes. With a preparation list on every profile it is twenty, of which eight ninths is a
- * brief for something the seller is not selling -- both a bill and a distraction. A separate pass
- * at detail:'low' costs a few hundred tokens and buys back all of it.
- */
-async function classifyItem(
-  client: OpenAI,
-  model: string,
-  sources: SourcePhoto[],
-  sellerNotes: string,
-): Promise<Identification> {
-  try {
-    // Its own encoding, at higher resolution than the planner's, and only a few photographs.
-    const detailed = await Promise.all(
-      sampleForAnalysis(sources, IDENTIFY_MAX_PHOTOS).map((s) =>
-        encodeForVision(s, IDENTIFY_MAX_EDGE),
-      ),
-    );
-
-    const completion = await withRateLimitRetry('identification', () =>
-      client.chat.completions.create({
-        model,
-        messages: [
-          {
-            role: 'system',
-            content:
-              'Identify what is being sold.\n\n' +
-              'itemType is the specific thing ("six-piece corduroy sectional sofa", "top-load ' +
-              'washing machine"); category is the broad family ("furniture", "appliance", ' +
-              '"vehicle", "tool", "jewelry", "fitness", "electronics"); isMatchingSet is true ' +
-              'when several units of the same thing are sold together.\n\n' +
-              'BRAND, MODEL AND YEAR: WORK THEM OUT. Spend real effort here -- this is the ' +
-              'highest-value thing you can determine, because naming the exact product turns ' +
-              'every later step from reconstruction into recall. An image model asked for "a ' +
-              'white top-load washer" averages every washer it has seen; asked for a model it ' +
-              'knows, it draws that one with the right dials in the right order.\n\n' +
-              'How to work it out, in order:\n' +
-              '  1. Read every badge, logo, model plate, sticker and moulded marking in the ' +
-              'photographs, including partial and half-legible ones.\n' +
-              '  2. Recognise it from the design. A mass-produced appliance, tool or vehicle is ' +
-              'identified as reliably by its control panel layout, dial style and count, door ' +
-              'and lid shape, trim and proportions as by any badge. You have seen these ' +
-              'products; this is ordinary product knowledge, not speculation.\n' +
-              '  3. Narrow to a model number where the design pins one, and give the production ' +
-              'years you know that model ran, in productionYears ("2015-2021").\n\n' +
-              'FORK BY WHAT THE ITEM IS, because different things are identified differently:\n' +
-              '  vehicle    -- year, make, model and trim; trim matters, since it changes ' +
-              'bumpers, wheels and exhausts.\n' +
-              '  appliance  -- brand, model number, capacity and configuration (top vs front ' +
-              'load, gas vs electric), and roughly when it was made.\n' +
-              '  tool       -- brand, model, and the variant that fixes what the tool looks ' +
-              'like (corded vs cordless, deck size, motor).\n' +
-              '  electronics-- brand, model line and generation, since the generation decides ' +
-              'the ports and the case.\n' +
-              '  furniture / jewelry -- usually unbranded. Say so and move on; do not strain.\n\n' +
-              'Do not guess to be helpful. Return null when you are not actually confident, and ' +
-              'prefer a confident brand with a null model over an invented model number -- a ' +
-              'wrong model number is a false specification about goods for sale. ' +
-              'identificationBasis says how you know, in a few words: "GE logo on the control ' +
-              'panel plus the five-dial layout", "recognised from the lid shape", "not ' +
-              'identifiable".',
-          },
-          {
-            role: 'user',
-            content: [
-              { type: 'text' as const, text: `seller notes: ${sellerNotes.trim() || 'none'}` },
-              ...detailed.map((url) => ({
-                type: 'image_url' as const,
-                image_url: { url, detail: 'high' as const },
-              })),
-            ],
-          },
-        ],
-        response_format: {
-          type: 'json_schema',
-          json_schema: { name: 'item_classification', strict: true, schema: classificationSchema },
-        },
-      }),
-    );
-    const raw = completion.choices[0]?.message?.content;
-    if (!raw) throw new Error('no content');
-    const c = JSON.parse(raw) as {
-      itemType: string;
-      category: string;
-      isMatchingSet: boolean;
-      brand: string | null;
-      model: string | null;
-      productionYears: string | null;
-      identificationBasis: string;
-    };
-    return {
-      profile: profileFor(c.itemType, c.category, c.isMatchingSet),
-      brand: c.brand,
-      model: c.model,
-      productionYears: c.productionYears,
-      basis: c.identificationBasis,
-    };
-  } catch (err) {
-    // Falling back to the whole catalog would be the obvious move and the wrong one: the most
-    // likely reason this failed is that the account is already at its token ceiling, and the
-    // catalog is four times the size. Route off the seller's own words instead.
-    console.warn('[analyze] identification failed, routing from seller notes instead:', err);
-    return {
-      profile: profileFor(sellerNotes, sellerNotes, /\b(set|pair|both|matching)\b/i.test(sellerNotes)),
-      brand: null,
-      model: null,
-      productionYears: null,
-      basis: 'identification failed',
-    };
   }
 }
 
@@ -452,7 +287,21 @@ Requirements specific to this call:
        background. A set with three images in a staged room and one on a driveway announces itself
        as fabricated instantly. That is about the background being visible -- not about the shot
        being "marketing".
-    4. "independent" -- the hero only.
+    4. "known_product" -- drawn from KNOWLEDGE of the identified model, with no reference image
+       at all. Available ONLY when visual_identification below names a specific model, and it is
+       the right answer for a close view of factory design that no photograph covers: a control
+       panel, a badge, a dial cluster, a connector, a fascia. You have seen that product; drawing
+       it is recall, and recall gets the dial count, the order and the printed cycle names right,
+       where reconstruction from unrelated wide shots invents all three.
+       NEVER use it for anything disclosing CONDITION -- wear, damage, undersides, interiors that
+       show grime, or any view whose job is to show what this used unit is actually like. What is
+       recalled is the product as it left the factory, and this one did not leave the factory
+       yesterday. Set sourcePhotoIndex null and inferenceLevel "model_completed", and write a
+       coverage note telling the seller that image is a representation of their model rather than
+       a photograph of their unit.
+       ORDER OF PREFERENCE for a detail shot: a source photograph if one covers it (source_edit),
+       otherwise known_product if the model is identified, otherwise do not plan the shot.
+    5. "independent" -- the hero only.
 
 - imageRole must NAME THE SHOT, using the role name from the category coverage table you chose
   ("representative_three_quarter", "interior_dashboard", "wheel_and_tyre", "material_detail"). It
@@ -796,21 +645,45 @@ export async function analyzeCampaign(
     { type: 'image_url' as const, image_url: { url: encoded[n], detail: 'high' as const } },
   ]);
 
-  const identified = await classifyItem(client, model, sources, sellerNotes);
+  const identified: Identification = await withRateLimitRetry('identification', () =>
+    identifyItem(client, model, sources, sellerNotes, (m) => console.log(`[identify] ${m}`)),
+  ).catch((err) => {
+    // Identification is a large quality lever, not a precondition. A campaign without it falls
+    // back to reconstruction, which is where this system was a week ago -- worse, not broken.
+    console.warn('[analyze] identification failed, routing from seller notes instead:', err);
+    return {
+      itemType: sellerNotes,
+      category: sellerNotes,
+      isMatchingSet: /\b(set|pair|both|matching)\b/i.test(sellerNotes),
+      brand: null,
+      model: null,
+      productionYears: null,
+      confidence: 'unknown' as const,
+      basis: 'identification failed',
+      knownDesign: '',
+    };
+  });
+  const profile = profileFor(identified.itemType, identified.category, identified.isMatchingSet);
 
   const userText = [
-    coverageBrief(identified.profile, requestedCount),
+    coverageBrief(profile, requestedCount),
     '',
     `requested_final_image_count: ${requestedCount}`,
     `seller_notes: ${sellerNotes.trim() || 'none provided'}`,
     identified.brand
       ? `visual_identification: ${identified.brand} ${identified.model ?? ''}`.trim() +
+        ` [${identified.confidence}]` +
         (identified.productionYears ? `, made ${identified.productionYears}` : '') +
         ` (${identified.basis}). The seller did not necessarily state this -- it was worked out ` +
         'from the photographs. Treat it as a probable fact, not a confirmed one: record it in ' +
         'productIdentity.brand/model so unseen views can be completed correctly, list it under ' +
-        'probableFacts rather than confirmedFacts, and still never render a badge, model number ' +
-        'or any lettering that is not legible in a source photograph.'
+        'probableFacts rather than confirmedFacts. Because the model is known, "known_product" ' +
+        'production mode is available for close views of factory design that no photograph ' +
+        'covers -- use it rather than dropping those shots.' +
+        (identified.knownDesign
+          ? `\n\nKNOWN DESIGN OF THIS PRODUCT (from product knowledge, not from these photos -- ` +
+            `use it for geometry and layout, never for condition):\n${identified.knownDesign}`
+          : '')
       : 'visual_identification: none -- no brand or model could be established from the photographs',
     `source photo count: ${sources.length}` +
       (shown.length < sources.length
@@ -878,7 +751,7 @@ export async function analyzeCampaign(
         shown.map(({ index }, n) => ({ index, url: encoded[n] })),
         parsed.productIdentity,
         sellerNotes,
-        identifiedProductName(identified),
+        productName(identified),
         identified.productionYears,
       ),
     );
@@ -928,6 +801,10 @@ export async function analyzeCampaign(
     // shot is full_set gives a buyer four small chairs and no look at any of them.
     const problems: string[] = [];
 
+    // Views whose whole job is to disclose condition, whatever the planner classified them as.
+    const CONDITION_ROLES =
+      /(engine|underside|undercarriage|wear|damage|condition|seal|hinge|carpet|rust|scratch|dent|stain|interior_floor|tyre|tire|tread|brake)/i;
+
     for (const shot of parsed.shots.slice(1)) {
       if (shot.productionMode !== 'source_edit' || shot.classification !== 'marketing') continue;
       // A close-up has no room in it to leak. The rule below exists because a wide marketing shot
@@ -941,16 +818,20 @@ export async function analyzeCampaign(
       shot.sourcePhotoIndex = null;
     }
 
-    // Text is the fastest way to make an image read as AI, and a control panel, a rating plate or
-    // a hallmark is mostly text. Reconstruction garbles it; editing the real photograph cannot.
-    // So a text-bearing close-up is produced from the photograph or it does not ship -- which is
-    // also the honest outcome, since invented lettering on goods for sale is a false specification.
+    // Text is the fastest way to make an image read as AI, and a control panel, rating plate or
+    // hallmark is mostly text. RECONSTRUCTION garbles it. The other two modes do not: editing a
+    // photograph cannot, and recall of an identified product gets the real cycle names because it
+    // has seen that product. So a text-bearing shot goes down a three-way preference and never
+    // stays on reconstruction.
     const TEXT_ROLES = /(control_panel|model_label|badge|hallmark|serial|rating|sticker|display|markings|dial)/i;
+    const canRecall = isUsable(identified);
     for (const shot of parsed.shots.slice(1)) {
-      if (!TEXT_ROLES.test(shot.imageRole) || shot.productionMode === 'source_edit') continue;
-      // Find an upload the planner already thought relevant to this shot.
+      if (!TEXT_ROLES.test(shot.imageRole)) continue;
+      if (shot.productionMode === 'source_edit' || shot.productionMode === 'known_product') continue;
+
       const candidate = shot.referenceSourceIndices?.find((i) => sources[i] !== undefined);
       if (candidate !== undefined) {
+        // Best: the seller photographed it. Nothing beats correcting the real thing.
         shot.productionMode = 'source_edit';
         shot.sourcePhotoIndex = candidate;
         shot.inferenceLevel = 'photographed';
@@ -958,12 +839,46 @@ export async function analyzeCampaign(
           `shot ${shot.sequenceNumber} (${shot.imageRole}) shows lettering and was planned as ` +
             `reconstruction, so it was anchored to source photo ${candidate} instead`,
         );
+      } else if (canRecall) {
+        // Next best: no photograph, but the model is known, so draw the one we know.
+        shot.productionMode = 'known_product';
+        shot.sourcePhotoIndex = null;
+        shot.inferenceLevel = 'model_completed';
+        problems.push(
+          `shot ${shot.sequenceNumber} (${shot.imageRole}) shows lettering that no photograph ` +
+            `covers, so it is drawn from knowledge of ${productName(identified)} rather than ` +
+            'reconstructed from unrelated wide shots',
+        );
       } else {
         problems.push(
-          `shot ${shot.sequenceNumber} (${shot.imageRole}) shows lettering but no source photo ` +
-            'covers it, so its text will be invented -- a close photograph of that panel or ' +
-            'label is the fix',
+          `shot ${shot.sequenceNumber} (${shot.imageRole}) shows lettering, no photograph covers ` +
+            'it, and the product was not identified -- its text will be invented. A close ' +
+            'photograph of that panel or label is the fix',
         );
+      }
+    }
+
+    // Recall reproduces the product as it left the factory. A condition-disclosing view drawn that
+    // way shows a clean example of the model rather than this eleven-year-old unit, which is the
+    // exact inversion of that shot's purpose.
+    for (const shot of parsed.shots) {
+      if (shot.productionMode !== 'known_product') continue;
+      const disclosesCondition =
+        shot.classification === 'evidence' || CONDITION_ROLES.test(shot.imageRole);
+      if (disclosesCondition) {
+        problems.push(
+          `shot ${shot.sequenceNumber} (${shot.imageRole}) discloses condition but was planned ` +
+            'from product knowledge, which would show the factory version rather than this unit',
+        );
+        shot.productionMode = 'hero_reference';
+        shot.inferenceLevel = 'interpolated';
+      } else if (!canRecall) {
+        problems.push(
+          `shot ${shot.sequenceNumber} (${shot.imageRole}) asked to be drawn from product ` +
+            'knowledge, but no product was identified',
+        );
+        shot.productionMode = 'hero_reference';
+        shot.inferenceLevel = 'interpolated';
       }
     }
 
@@ -1057,9 +972,13 @@ export async function analyzeCampaign(
     // canonical rear elevation to look up. The run that labelled six chair shots "model_completed"
     // was claiming a source that does not exist. Where symmetry or continuity genuinely carries
     // the view it is interpolation; that is the honest label, so demote rather than discard.
-    const identified = Boolean(parsed.productIdentity.brand && parsed.productIdentity.model);
-    if (!identified) {
-      const claimed = parsed.shots.filter((s) => s.inferenceLevel === 'model_completed');
+    const hasBrandAndModel = Boolean(parsed.productIdentity.brand && parsed.productIdentity.model);
+    if (!hasBrandAndModel) {
+      // known_product shots are gated separately, on the identification pass rather than on what
+      // the planner echoed back into productIdentity, so they are not second-guessed here.
+      const claimed = parsed.shots.filter(
+        (s) => s.inferenceLevel === 'model_completed' && s.productionMode !== 'known_product',
+      );
       if (claimed.length) {
         problems.push(
           `${claimed.length} shot(s) claimed model completion for an item with no identified ` +
@@ -1105,8 +1024,6 @@ export async function analyzeCampaign(
     // model knowledge is a factory-clean engine bay -- on a car with 125,000 miles that is not a
     // representation, it is a different engine. The classification check alone missed these,
     // because the planner files them as marketing detail.
-    const CONDITION_ROLES =
-      /(engine|underside|undercarriage|wear|damage|condition|seal|hinge|carpet|rust|scratch|dent|stain|interior_floor|tyre|tire|tread|brake)/i;
     for (const shot of parsed.shots) {
       const disclosesCondition =
         shot.classification === 'evidence' || CONDITION_ROLES.test(shot.imageRole);

@@ -4,6 +4,7 @@ import {
   dataUrlToSourcePhoto,
   editHeroImage,
   editSourceImage,
+  generateFromKnowledge,
   generateShotImage,
 } from './generateImages';
 import { getJob, persistImageResult, setProgress, setStatus, updateJob } from './store';
@@ -131,7 +132,10 @@ async function generateOneShot(
 
   try {
     let image: string;
-    if (staged.productionMode === 'source_edit') {
+    if (staged.productionMode === 'known_product') {
+      // No reference image at all -- see generateFromKnowledge for why that is the point.
+      image = await generateFromKnowledge(client, staged);
+    } else if (staged.productionMode === 'source_edit') {
       image = await editSourceImage(client, staged, sources[staged.sourcePhotoIndex as number]);
     } else if (staged.productionMode === 'hero_edit') {
       image = await editHeroImage(

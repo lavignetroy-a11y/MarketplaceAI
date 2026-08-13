@@ -157,6 +157,45 @@ export async function editSourceImage(
   return `data:image/png;base64,${b64}`;
 }
 
+/**
+ * Draws a view from KNOWLEDGE of an identified product, with no reference image at all.
+ *
+ * This is the mode that produces a correct control panel, and it is deliberately the only one that
+ * calls images.generate rather than images.edit.
+ *
+ * Edit mode anchors output to input pixels. That is exactly right when a photograph of the thing
+ * exists, and exactly wrong here: handed three wide shots of a washer in a driveway and asked for
+ * a close, square-on panel, the model has no panel pixels to work from, so it averages what it was
+ * given and invents lettering. Generate mode has no pixels to be pulled toward, so a prompt naming
+ * "GE GTW460ASJWW, four knobs, Load Size at far left..." lets it draw the product it has seen
+ * thousands of times -- which is how a chat assistant produced a clean, correctly-lettered panel
+ * from the same photographs this pipeline was failing on.
+ *
+ * The trade is real and bounded: nothing here is anchored to the seller's unit, so this mode is
+ * only ever valid for surfaces where the identified product and the seller's unit are the same --
+ * factory design, not condition. Condition-disclosing views must never use it.
+ */
+export async function generateFromKnowledge(
+  client: OpenAI,
+  shot: ShotPlan,
+  compose: ComposePrompt = withPhotoContract,
+  quality: ImageQuality = 'high',
+): Promise<string> {
+  const result = await client.images.generate({
+    model: IMAGE_MODEL,
+    prompt: compose(shot.prompt, shot.classification, false),
+    n: 1,
+    size: sizeForOrientation(shot.orientation),
+    quality,
+  });
+
+  const b64 = result.data?.[0]?.b64_json;
+  if (!b64) {
+    throw new Error('Image generation returned no image data.');
+  }
+  return `data:image/png;base64,${b64}`;
+}
+
 export function dataUrlToSourcePhoto(dataUrl: string, fileName: string): SourcePhoto {
   const match = dataUrl.match(/^data:(.+);base64,(.*)$/);
   if (!match) {
