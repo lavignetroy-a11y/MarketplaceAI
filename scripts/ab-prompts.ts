@@ -404,11 +404,24 @@ async function main() {
   console.log(`\n  ${sources.length} source photos from ${dir}`);
   // Output-token rates only. Every images.edit call also bills for the reference photos it sends,
   // so treat these as a floor rather than a quote -- roughly 15-30% light on a set this size.
-  const RATE: Record<ImageQuality, number> = { low: 0.006, medium: 0.05, high: 0.21 };
+  //
+  // Keyed by model because the two generations are priced very differently, and the estimate was
+  // quietly reporting gpt-image-2 prices after generation was pinned to gpt-image-1 -- which
+  // understated a low-quality run by about half. A cost estimate nobody can trust is worse than
+  // none, since it is read precisely when deciding whether a run is affordable.
+  const IMAGE_MODEL = process.env.OPENAI_IMAGE_MODEL || 'gpt-image-1';
+  const RATES: Record<string, Record<ImageQuality, number>> = {
+    // Landscape and portrait cost about half again as much as square; these sit between the two.
+    'gpt-image-1': { low: 0.013, medium: 0.05, high: 0.2 },
+    'gpt-image-2': { low: 0.006, medium: 0.05, high: 0.21 },
+  };
+  const RATE = RATES[IMAGE_MODEL] ?? RATES['gpt-image-1'];
   const perTier = arms.length * count;
   const total = qualities.reduce((sum, q) => sum + perTier * RATE[q], 0);
 
   console.log(`  planning logic: ${logic}`);
+  console.log(`  text model: ${process.env.OPENAI_TEXT_MODEL || 'gpt-4o (default)'}`);
+  console.log(`  image model: ${IMAGE_MODEL}`);
   console.log(`  ${arms.length} arms x ${count} shots = ${perTier} images per quality tier`);
   console.log(`  tiers: ${qualities.join(', ')}  ->  ${perTier * qualities.length} images total`);
   qualities.forEach((q) =>
